@@ -29,11 +29,18 @@ export async function save(row) {
 export async function saveMany(rows) { if (!rows.length) return []; const saved = await db.insertMany('items', rows); S.items.push(...saved); return saved; }
 export async function patch(x, changes) { return save({ ...x, ...changes, data: changes.data ? { ...(x.data || {}), ...changes.data } : x.data }); }
 /** Delete an item, everything under it, and their photo files. */
-export async function remove(id) {
-  await deleteFilesUnder(id);
-  await db.remove('items', id);
+export async function remove(id, { skipCalendarTombstone = false } = {}) {
   const gone = new Set([id]); let grew = true;
   while (grew) { grew = false; for (const x of S.items) if (x.parent_id && gone.has(x.parent_id) && !gone.has(x.id)) { gone.add(x.id); grew = true; } }
+  if (!skipCalendarTombstone) {
+    const eventIds = S.items
+      .filter(x => gone.has(x.id) && ['event', 'block'].includes(x.kind))
+      .map(x => x.data?.googleCalendar?.eventId)
+      .filter(Boolean);
+    await db.queueCalendarDeletions(eventIds);
+  }
+  await deleteFilesUnder(id);
+  await db.remove('items', id);
   S.items = S.items.filter(x => !gone.has(x.id)); S.photos = S.photos.filter(p => !gone.has(p.item_id));
 }
 

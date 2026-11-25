@@ -50,6 +50,8 @@ const demo = {
   async init() { try { localStorage.removeItem(DEMO_KEY); if (!window.__testHarness) sessionStorage.removeItem(DEMO_KEY); } catch { /* ignore */ } if (!window.__testHarness) { try { await idb.clear(); } catch { /* ignore */ } } D = demoLoad(); demoSave(); },
   async session() { return { user: { id: DEMO_ME, email: 'you@example.com' } }; },
   onAuthChange() {},
+  async calendar(action) { throw new Error(`A sincronização com Google Agenda não está disponível na demonstração (${action}).`); },
+  async queueCalendarDeletions() {},
   async resendConfirm() {},
   async owns() { return true; },
   async loadSettings() { return clone(D.settings); },
@@ -112,6 +114,16 @@ const cloud = {
   async sendReset(email) { return must(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })); },
   async resendConfirm(email) { return must(await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + location.pathname } })); },
   async updatePassword(password) { return must(await sb.auth.updateUser({ password })); },
+  async calendar(action, payload = {}) {
+    const result = await sb.functions.invoke('google-calendar', { body: { action, ...payload } });
+    if (result.error) throw new Error(result.error.message || 'Falha ao falar com o serviço do Google Agenda.');
+    if (result.data?.error) throw new Error(result.data.error);
+    return result.data;
+  },
+  async queueCalendarDeletions(eventIds) {
+    const rows = [...new Set(eventIds)].map(google_event_id => ({ user_id: this.me, google_event_id }));
+    if (rows.length) must(await sb.from('hub_google_calendar_deletions').insert(rows));
+  },
   async owns() { return Boolean(must(await sb.rpc('owns', { p_product: PRODUCT }))); },
   async redeem(code) { must(await sb.rpc('redeem_for', { p_code: code, p_product: PRODUCT })); return true; },
   async loadSettings() { return num(must(await sb.from('hub_settings').select('*').eq('user_id', this.me).maybeSingle())) || {}; },

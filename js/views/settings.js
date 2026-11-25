@@ -1,6 +1,6 @@
 // Settings: how it looks (theme, text size, motion, celebrations, sound), the basics (name,
 // currency, week start, the planner year), your daily habits, and your data.
-import { S, esc, icon, ACTIONS, BINDS, FORMS, rerender, today, toast, fail, applyTheme, THEMES, themeId, APP, CURRENCIES } from '../core.js';
+import { S, esc, icon, ACTIONS, BINDS, FORMS, rerender, today, toast, fail, applyTheme, THEMES, themeId, APP, CURRENCIES, openModal, closeModal, modalShell, confirmButton } from '../core.js';
 import { db, hasCloud } from '../data.js';
 import { saveSettings, download } from '../ui.js';
 import { items, dget, sortBy, addBtn, EXP_CATS, INC_CATS } from '../kinds.js';
@@ -35,6 +35,13 @@ const CURRENCY_PT = {
 };
 export function viewSettings() {
   const s = S.settings; const d = D(); const ts = Number(d.textSize ?? 1);
+  const calendarResult = new URLSearchParams(location.hash.split('?')[1] || '').get('calendar');
+  const calendarFeedback = {
+    connected: 'Google Agenda conectado. A sincronização automática está ativa.',
+    expired: 'O link de autorização expirou. Tente conectar novamente.',
+    error: 'Não foi possível conectar o Google Agenda. Verifique a configuração OAuth e tente novamente.',
+    reauthorize: 'O Google não forneceu um token de renovação. Tente conectar novamente e aceite as permissões.',
+  }[calendarResult] || '';
   return `${hubHead(0, 'Personalize', 'Suas <em>Configurações</em>', 'A aparência, os dados básicos, seus hábitos e suas informações.')}
   <div class="set-cols"><div class="set-col">
     <section class="card box"><h2>Aparência</h2>
@@ -50,8 +57,11 @@ export function viewSettings() {
       <div class="set-save"><button class="btn solid">Salvar</button></div></form></div>
   <div class="set-col">
     <section class="card box"><h2>Google Agenda</h2>
-      <p class="small muted">Baixe eventos e blocos de tempo do HUB em um arquivo .ics. No Google Agenda, vá a Configurações → Importar e exportar → Importar e selecione o arquivo. A importação é manual e não sincroniza alterações de volta; importar o arquivo novamente pode criar duplicatas.</p>
-      <button class="btn sm solid" data-action="calendar-export">${icon('download')} Exportar agenda (.ics)</button></section>
+      ${db.mode === 'cloud' ? `<p class="small muted">Depois de conectar sua conta, o Supabase sincroniza automaticamente a cada 5 minutos, mesmo com o HUB fechado. Eventos e blocos vinculados são atualizados nos dois sentidos; em conflitos, o Google prevalece. Exclusões são espelhadas. Eventos novos do Google só entram no HUB quando você os seleciona.</p>
+        <div class="inline"><button class="btn sm solid" data-action="calendar-connect">Conectar Google</button><button class="btn sm" data-action="calendar-sync">Sincronizar agora</button><button class="btn sm" data-action="calendar-import">Escolher eventos</button><button class="btn sm ghost danger" data-action="calendar-disconnect">Desconectar</button></div>
+        ${calendarFeedback ? `<p class="small" role="status">${esc(calendarFeedback)}</p>` : ''}
+        <p class="small muted">A integração usa a agenda principal. A conexão segura e a sincronização automática só funcionarão depois que o OAuth do Google e a função do Supabase forem configurados.</p>` : `<p class="small muted">A sincronização com Google Agenda exige uma conta HUB conectada, não está disponível na prévia.</p>`}
+      <button class="btn sm ghost" data-action="calendar-export">${icon('download')} Exportar agenda (.ics)</button></section>
     <section class="card box"><header class="box-head"><h2>Hábitos diários</h2>${addBtn('habit', 'Adicionar hábito', { cls: 'sm ghost', preset: { data: { icon: 'sparkle' } } })}</header><p class="small muted">Marcados no Início, contados no mapa de hábitos e no Arquivo de Memórias.</p>
       <ul class="rows">${habits().map(h => `<li><span class="sk-ic">${icon(dget(h, 'icon') || 'sparkle')}</span><span class="r-t"><button class="link-plain" data-action="edit" data-id="${esc(h.id)}"><b>${esc(h.title)}</b></button><small>${habitStreak(h.id)} dias seguidos</small></span></li>`).join('') || '<li class="muted small">Nenhum hábito ainda.</li>'}</ul></section>
     <section class="card box"><h2>Seus dados</h2>
@@ -78,6 +88,61 @@ ACTIONS['calendar-export'] = () => {
   a.click();
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
   toast('Arquivo da agenda baixado. Importe-o no Google Agenda.');
+};
+ACTIONS['calendar-connect'] = async (button) => {
+  button.disabled = true;
+  try {
+    const result = await db.calendar('connect', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' });
+    if (!result.authorizationUrl) throw new Error('O serviço não retornou o endereço de autorização do Google.');
+    location.assign(result.authorizationUrl);
+  } catch (e) { fail(e); if (button.isConnected) button.disabled = false; }
+};
+ACTIONS['calendar-sync'] = async (button) => {
+  button.disabled = true;
+  try {
+    const result = await db.calendar('sync');
+    await ACTIONS._reload();
+    toast(`Sincronização concluída: ${result.synced || 0} evento(s), ${result.deleted || 0} exclusão(ões).`);
+    rerender();
+  } catch (e) { fail(e); }
+  finally { if (button.isConnected) button.disabled = false; }
+};
+ACTIONS['calendar-import'] = async (button) => {
+  button.disabled = true;
+  try {
+    const result = await db.calendar('list-imports');
+    const events = result.events || [];
+    if (!events.length) {
+      openModal(modalShell('Nenhum evento novo', '<p class="small">Não há eventos futuros não vinculados na agenda principal do Google.</p>', '<div class="right"><button type="button" class="btn solid" data-action="close-modal">Fechar</button></div>'), { size: 'narrow' });
+      return;
+    }
+    const body = `<p class="small muted">Selecione quais eventos futuros deseja adicionar ao HUB. Somente os selecionados serão vinculados e sincronizados automaticamente.</p><div class="stack">${events.map(event => {
+      const start = event.start?.date || event.start?.dateTime || '';
+      const when = start.includes('T') ? start.replace('T', ' · ').slice(0, 16) : start;
+      return `<label class="set-row"><span class="sr-t"><b>${esc(event.summary || 'Sem título')}</b><small>${esc(when)}${event.location ? ` · ${esc(event.location)}` : ''}</small></span><input type="checkbox" name="google-event" value="${esc(event.id)}"></label>`;
+    }).join('')}</div>`;
+    openModal(modalShell('Importar do Google Agenda', body, '<div class="right"><button type="button" class="btn ghost" data-action="close-modal">Cancelar</button><button class="btn solid">Importar selecionados</button></div>', { form: 'google-import' }), { size: 'wide' });
+  } catch (e) { fail(e); }
+  finally { if (button.isConnected) button.disabled = false; }
+};
+ACTIONS['calendar-disconnect'] = (button) => confirmButton(button, 'Toque novamente para desconectar', async () => {
+  try {
+    const result = await db.calendar('disconnect');
+    toast(result.revocationWarning || 'Conta Google desconectada.');
+    rerender();
+  }
+  catch (e) { fail(e); }
+});
+FORMS['google-import'] = async (form) => {
+  const eventIds = [...form.querySelectorAll('input[name="google-event"]:checked')].map(input => input.value);
+  if (!eventIds.length) { toast('Selecione pelo menos um evento.'); return; }
+  try {
+    const result = await db.calendar('import', { eventIds });
+    await ACTIONS._reload();
+    closeModal();
+    rerender();
+    toast(`${result.imported || 0} evento(s) importado(s) do Google Agenda.`);
+  } catch (e) { fail(e); }
 };
 FORMS.basics = async (f) => { const v = (n) => f.elements[n].value.trim(); await saveSettings({ display_name: v('display_name') || null, currency: v('currency'), week_start: Number(v('week_start')), board_year: null }); rerender(); toast('Salvo'); };
 FORMS.password = async (f) => { try { await db.updatePassword(f.elements.password.value); f.reset(); toast('Senha alterada'); } catch (e) { fail(e); } };
