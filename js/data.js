@@ -116,7 +116,10 @@ const cloud = {
   async updatePassword(password) { return must(await sb.auth.updateUser({ password })); },
   async calendar(action, payload = {}) {
     const result = await sb.functions.invoke('google-calendar', { body: { action, ...payload } });
-    if (result.error) throw new Error(result.error.message || 'Falha ao falar com o serviço do Google Agenda.');
+    if (result.error) {
+      const body = await result.error.context?.clone?.().json?.().catch(() => ({}));
+      throw new Error(body?.error || result.error.message || 'Falha ao falar com o serviço do Google Agenda.');
+    }
     if (result.data?.error) throw new Error(result.data.error);
     return result.data;
   },

@@ -748,8 +748,19 @@ async function imports(request: Request, action: string) {
   if (!eventIds.length || eventIds.length > 100) {
     throw new Error("Selecione de 1 a 100 eventos para importar.");
   }
+  const { data: existingItems, error: existingError } = await admin.from(
+    "hub_items",
+  ).select("data").eq("user_id", user.id).in("kind", ["event", "block"]);
+  if (existingError) throw existingError;
+  const existingEventIds = new Set(
+    (existingItems || []).map((item: { data?: Record<string, unknown> }) =>
+      (item.data?.googleCalendar as Record<string, unknown> | undefined)
+        ?.eventId
+    ).filter(Boolean),
+  );
   const imported = [];
   for (const eventId of eventIds) {
+    if (existingEventIds.has(eventId)) continue;
     const event = await googleApi<GoogleEvent>(token, calendarPath(eventId));
     if (!event || event.status === "cancelled") continue;
     const value = googleValue(event, connection.time_zone);
@@ -787,6 +798,7 @@ async function imports(request: Request, action: string) {
       },
     });
     imported.push(id);
+    existingEventIds.add(eventId);
   }
   return json({ imported: imported.length });
 }
