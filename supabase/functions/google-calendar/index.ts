@@ -59,7 +59,7 @@ const originAllowed = (origin: string | null) =>
 const corsHeaders = {
   "Access-Control-Allow-Origin": new URL(siteUrl).origin,
   "Access-Control-Allow-Headers":
-    "authorization, apikey, content-type, x-cron-secret",
+    "authorization, apikey, content-type, x-client-info, x-cron-secret",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Vary": "Origin",
 };
