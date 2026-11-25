@@ -5,8 +5,8 @@
 export const CONFIG = {
   appName: 'HUB',
   product: 'hub',
-  supabaseUrl: 'https://nieluuutomuiaaejjqne.supabase.co',
-  supabaseKey: 'sb_publishable_2Hfq_4kXXIWsnZVo4t6h2g_2VN9BlJy',
+  supabaseUrl: 'https://oqdamiwsojxzijskehnn.supabase.co',
+  supabaseKey: 'sb_publishable_brL-XtrE_gup0427dvZagQ_xgIDTy8i',
   shopUrl: '',
   supportEmail: '',
 };

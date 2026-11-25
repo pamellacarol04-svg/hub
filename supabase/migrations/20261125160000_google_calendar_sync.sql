@@ -40,6 +40,9 @@ create policy "Users can queue their own Google Calendar deletions"
 grant all on public.hub_google_calendar_connections to service_role;
 grant all on public.hub_google_calendar_oauth_states to service_role;
 grant all on public.hub_google_calendar_deletions to service_role;
+revoke all on public.hub_google_calendar_connections from anon, authenticated;
+revoke all on public.hub_google_calendar_oauth_states from anon, authenticated;
+revoke all on public.hub_google_calendar_deletions from anon, authenticated;
 grant insert on public.hub_google_calendar_deletions to authenticated;
 
 create extension if not exists pg_cron with schema extensions;

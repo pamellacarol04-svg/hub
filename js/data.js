@@ -13,7 +13,6 @@ const pick = (obj, cols) => { const out = {}; for (const c of cols) if (c in obj
 const clone = (x) => JSON.parse(JSON.stringify(x));
 export const hasCloud = Boolean(CONFIG.supabaseUrl && CONFIG.supabaseKey);
 export const demoRequested = () => new URLSearchParams(location.search).has('demo');
-const PRODUCT = CONFIG.product || 'hub';
 export const MAX_PHOTOS_DEMO = 150;
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
 const now = () => new Date().toISOString();
@@ -107,8 +106,7 @@ const cloud = {
     sb = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
   },
   async session() { const s = must(await sb.auth.getSession()).session; this.me = s?.user?.id || null; return s; },
-  onAuthChange(cb) { sb.auth.onAuthStateChange((event, session) => { this.me = session?.user?.id || this.me; setTimeout(() => cb(event, session), 0); }); },
-  async signUp(email, password) { return must(await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } })); },
+  onAuthChange(cb) { sb.auth.onAuthStateChange((event, session) => { this.me = session?.user?.id || null; setTimeout(() => cb(event, session), 0); }); },
   async signIn(email, password) { return must(await sb.auth.signInWithPassword({ email, password })); },
   async signOut() { await sb.auth.signOut(); },
   async sendReset(email) { return must(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })); },
@@ -127,8 +125,7 @@ const cloud = {
     const rows = [...new Set(eventIds)].map(google_event_id => ({ user_id: this.me, google_event_id }));
     if (rows.length) must(await sb.from('hub_google_calendar_deletions').insert(rows));
   },
-  async owns() { return Boolean(must(await sb.rpc('owns', { p_product: PRODUCT }))); },
-  async redeem(code) { must(await sb.rpc('redeem_for', { p_code: code, p_product: PRODUCT })); return true; },
+  async owns() { return Boolean(this.me); },
   async loadSettings() { return num(must(await sb.from('hub_settings').select('*').eq('user_id', this.me).maybeSingle())) || {}; },
   async saveSettings(patch) { return num(must(await sb.from('hub_settings').upsert({ user_id: this.me, ...pick(patch, SETTINGS_COLS) }).select().single())); },
   async loadAll() {

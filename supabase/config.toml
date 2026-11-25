@@ -1,2 +1,7 @@
 [functions.google-calendar]
 verify_jwt = false
+
+[auth]
+enable_signup = false
+site_url = "https://pamellacarol04-svg.github.io/hub/"
+additional_redirect_urls = ["https://pamellacarol04-svg.github.io/hub/**"]

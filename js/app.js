@@ -1,9 +1,8 @@
 // App shell: the sidebar notebook with every hub and the capture box, the top bar, the drawer and tab bar,
-// search, quick capture, routing, uploads and pasting, keyboard shortcuts, sign-in, keys and start-up.
+// search, quick capture, routing, uploads and pasting, keyboard shortcuts, sign-in and start-up.
 import { db } from './data.js';
 import { S, $, esc, icon, APP, ACTIONS, FORMS, BINDS, hooks, route, toast, modal, closeModal, openModal, modalShell, applyTheme, rerender, fail, today, fmtDay, sparkle, DEMO, demoGate, buyLink, firstName, DAYS_LONG, MONTHS, MONTHS_LONG, parseDay } from './core.js';
-import { renderAuth, renderUnlock, friendlyAuthError } from './views/auth.js';
-import { saveSettings } from './ui.js';
+import { renderAuth, friendlyAuthError } from './views/auth.js';
 import { addPhotos, PICK_HOOKS, img } from './photos.js';
 import { items, byId, dget, openEditor } from './kinds.js';
 import { viewSettings } from './views/settings.js';
@@ -107,12 +106,11 @@ function renderShell() {
 }
 function render() {
   if (!S.session) return renderAuth();
-  if (!S.unlocked) return renderUnlock();
   renderShell();
 }
 hooks.render = render;
 hooks.rerender = () => {
-  if (!S.session || !S.unlocked) return render();
+  if (!S.session) return render();
   const y = window.scrollY; const active = document.activeElement; const navX = $('.hubnav')?.scrollLeft || 0;
   const key = active?.id || (active?.dataset?.action && `[data-action="${active.dataset.action}"]${active.dataset.id ? `[data-id="${CSS.escape(active.dataset.id)}"]` : ''}${active.dataset.v ? `[data-v="${CSS.escape(active.dataset.v)}"]` : ''}`);
   renderShell(); window.scrollTo(0, y); if ($('.hubnav')) $('.hubnav').scrollLeft = navX;
@@ -225,15 +223,10 @@ document.addEventListener('submit', async (e) => {
   if (f.elements.email) S.authEmail = v('email');
   try {
     if (kind === 'login') { await db.signIn(v('email'), f.elements.password.value); return; }
-    if (kind === 'signup') { const r = await db.signUp(v('email'), f.elements.password.value); if (!r.session) { S.authView = 'login'; S.authMsg = 'Check your email and tap the confirmation link, then log in here.'; renderAuth(); } return; }
     if (kind === 'forgot') { await db.sendReset(v('email')); S.authMsg = 'If that email has an account, a reset link is on its way.'; renderAuth(); return; }
     if (kind === 'resend') { await db.resendConfirm(v('email')); S.needConfirm = false; S.authView = 'login'; S.authMsg = 'If that email is waiting to be confirmed, a new link is on its way. Check spam too, then open it on this device.'; renderAuth(); return; }
     if (kind === 'newpass') { await db.updatePassword(f.elements.password.value); S.authView = 'login'; toast('Password saved'); await afterLogin(); return; }
-    if (kind === 'unlock') {
-      const code = v('code'); const name = v('name');
-      await db.redeem(code); S.unlocked = true; if (name) await saveSettings({ display_name: name }); await loadData(); render(); toast(`Welcome to ${APP}`); return;
-    }
-  } catch (err) { busy(false); S.authErr = friendlyAuthError(err.message); kind === 'unlock' ? renderUnlock() : renderAuth(); }
+  } catch (err) { busy(false); S.authErr = friendlyAuthError(err.message); renderAuth(); }
 });
 // ---------------------------------------------------------------------
 // Start-up
