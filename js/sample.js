@@ -79,8 +79,6 @@ export function sampleData() {
   add({ kind: 'objective', title: 'Feel strong in my body', num: Y, cat: 'health', data: { q: String(q), krs: [{ t: 'Strength sessions', target: 30, cur: 14 }, { t: 'Squat (kg)', target: 70, cur: 62 }, { t: 'Runs over 5k', target: 10, cur: 4 }] } });
   add({ kind: 'objective', title: 'Six months of savings', num: Y, cat: 'money', data: { q: String(q), krs: [{ t: 'Emergency fund ($)', target: 15000, cur: 9800 }] } });
   for (let qq = 1; qq < q; qq++) add({ kind: 'qreview', num: Y, cat: String(qq), data: { score: [7, 8, 6][qq - 1] || 7, wins: [['Signed Bloom & Co.', 'Ran every week'], ['Booked Japan', 'First case study live'], ['Raised my rates', 'Finished the UX course module 1']][qq - 1] || ['A steady quarter'], lessons: [['Say no faster'], ['Batch the admin'], ['Rest is productive']][qq - 1] || ['Keep going'], next: [['Launch the newsletter'], ['Ship the portfolio'], ['Protect mornings']][qq - 1] || ['Keep going'] } });
-  const resetDone = { [wk]: [0, 1, 2, 3, 4] };
-
   // ---------------- 3 Finance ----------------
   for (let mo = -6; mo <= 0; mo++) {
     add({ kind: 'txn', title: 'Retainer: Juniper Studio', status: 'in', cat: 'freelance', amount: 3200, day: md(mo, 1) });
@@ -210,7 +208,7 @@ export function sampleData() {
 
   // ---------------- Settings ----------------
   const settings = { display_name: 'Maya Torres', theme: 'hub', calm: false, decor: true, sound: true, currency: 'USD', week_start: 1, board_year: null,
-    data: { habitsDone, mood, feelings, moodNote, steps: steps2, stepGoal: 8000, energy, themes: { [Y]: { word: 'Rooted', line: 'Fewer, deeper: clients, friendships, habits.' } }, qPlan: { [`${Y}-Q${Math.floor(M / 3) + 1}`]: { focus: 'Ship the portfolio, launch the letter, rest on Sundays', pri: ['Portfolio site live', 'Newsletter issue #2 out', 'Kyoto, fully offline'], done: [] } }, dayNotes: { [day(0)]: 'Call Nonna after lunch. Bring the sketchbook to the café.' }, resetDone, netWorth, debtMethod: 'snowball', debtExtra: 200,
+    data: { habitsDone, mood, feelings, moodNote, steps: steps2, stepGoal: 8000, energy, themes: { [Y]: { word: 'Rooted', line: 'Fewer, deeper: clients, friendships, habits.' } }, qPlan: { [`${Y}-Q${Math.floor(M / 3) + 1}`]: { focus: 'Ship the portfolio, launch the letter, rest on Sundays', pri: ['Portfolio site live', 'Newsletter issue #2 out', 'Kyoto, fully offline'], done: [] } }, dayNotes: { [day(0)]: 'Call Nonna after lunch. Bring the sketchbook to the café.' }, netWorth, debtMethod: 'snowball', debtExtra: 200,
       mealPlan: { [wk]: plan, [day(mondayOff - 7)]: plan2 }, groceryDone: { [wk]: ['rolled oats', 'honey'] }, macros: { cal: 2000, protein: 120, carbs: 220, fat: 65 }, readingGoal: 20, visited, wishCountries, packed: { [kyo.id]: ['Passport', 'Notebook'] }, resume, pomoMins: 25, textSize: 1 } };
   void lis; void news; void bloom; void port;
   return { items, photos, settings };

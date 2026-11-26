@@ -49,8 +49,15 @@ export async function remove(id, { skipCalendarTombstone = false } = {}) {
 // Option lists
 // ---------------------------------------------------------------------
 export const opts = (o) => (Array.isArray(o) ? o.map(x => (Array.isArray(x) ? x : [x, x])) : Object.entries(o));
-export const BLOCK_TONES = { sky: 'Azul', blush: 'Rosa', butter: 'Amarelo', sage: 'Verde', lilac: 'Lilás' };
+const LEGACY_BLOCK_COLORS = { sky: '#BFDCF5', blush: '#F9C9DF', butter: '#F6E3A1', sage: '#CBE6CF', lilac: '#DCCEF3' };
+export const normalizeHexColor = (value) => {
+  const hex = String(value ?? '').trim();
+  return /^#?[0-9a-f]{6}$/i.test(hex) ? `#${hex.replace(/^#/, '').toUpperCase()}` : null;
+};
+export const blockColor = (item) => normalizeHexColor(dget(item, 'color'));
 export const PRIORITIES = { high: 'Alta', med: 'Média', low: 'Baixa' };
+export const PLAN_CATEGORIES = { pessoal: 'Pessoal', residencia: 'Residência', medicina: 'Medicina', comissao: 'Comissão', formatura: 'Formatura' };
+export const APPOINTMENT_TYPES = { '': 'Selecione o tipo', prova: 'Prova', evento: 'Evento', reuniao: 'Reunião', consulta: 'Consulta', viagem: 'Viagem' };
 export const LIFE_AREAS = { self: 'Eu', health: 'Saúde', career: 'Carreira', money: 'Dinheiro', love: 'Amor e amigos', home: 'Casa', travel: 'Viagens', growth: 'Crescimento' };
 export const HABIT_ICONS = { drop: 'Água', sun: 'Luz da manhã', barbell: 'Movimento', book: 'Leitura', moon: 'Sono', leaf: 'Vegetais', heart: 'Autocuidado', notePencil: 'Diário', brain: 'Aprendizado', sparkle: 'Outro' };
 export const CAPTURE_KINDS = { thought: 'Ideia', task: 'Tarefa', link: 'Link' };
@@ -134,8 +141,8 @@ export const DEFS = {
   cover:    { label: 'Banner de capa', fields: [{ k: 'title', label: 'Legenda', type: 'text', max: 120, wide: true }], photos: 'one', photoLabel: 'Adicionar foto de capa' },
   vibe:     { label: 'Vibe atual', fields: [{ k: 'title', label: 'Legenda', type: 'text', max: 140, wide: true, ph: 'Ex.: manhãs tranquilas, grandes planos' }, F.day('Mês', true)], photos: 'one', photoLabel: 'Adicionar foto da vibe ou quadro de visão' },
   habit:    { label: 'Hábito', fields: [F.title('Hábito', 'Ex.: Ler 20 páginas'), sel('d.icon', 'Ícone', HABIT_ICONS), F.cat('Área da vida', LIFE_AREAS)] },
-  task:     { label: 'Tarefa', fields: [F.title('Tarefa', 'Ex.: Enviar a proposta'), F.day('Fazer em'), F.cat('Prioridade', PRIORITIES), sel('parent_id', 'Projeto', refOpts('project', 'Sem projeto')), F.status('Status', { todo: 'Pendente', done: 'Concluído' }), F.body('Notas', '', 2)] },
-  block:    { label: 'Reunião ou bloco de tempo', fields: [F.title('O que', 'Ex.: Reunião rápida da equipe'), F.day('Dia', true), F.d('start', 'Começa', 'time', { req: true }), F.d('end', 'Termina', 'time', { req: true }), F.cat('Cor', BLOCK_TONES), F.check('meet', 'É uma reunião'), F.body('Nota', '', 2)] },
+  task:     { label: 'Tarefa', fields: [F.title('Tarefa', 'Ex.: Enviar a proposta'), F.day('Fazer em'), sel('d.category', 'Categoria', PLAN_CATEGORIES), F.cat('Prioridade', PRIORITIES), sel('parent_id', 'Projeto', refOpts('project', 'Sem projeto')), F.status('Status', { todo: 'Pendente', done: 'Concluído' }), F.body('Notas', '', 2)] },
+  block:    { label: 'Reunião ou bloco de tempo', fields: [F.title('O que', 'Ex.: Reunião rápida da equipe'), F.day('Dia', true), F.d('start', 'Começa', 'time', { req: true }), F.d('end', 'Termina', 'time', { req: true }), sel('d.appointmentType', 'Tipo de compromisso', APPOINTMENT_TYPES, { req: true }), sel('d.category', 'Categoria', PLAN_CATEGORIES), F.d('color', 'Cor do compromisso (HEX)', 'color', { req: true, default: '#BFDCF5' }), F.body('Nota', '', 2)] },
   capture:  { label: 'Item da caixa de entrada', fields: [F.title('O que', 'Uma ideia, tarefa ou link'), F.cat('Tipo', CAPTURE_KINDS), F.url('Link')] },
   // 1 Vision & Identity
   vpin:     { label: 'Foto do quadro de visão', fields: [{ k: 'title', label: 'Legenda', type: 'text', max: 140, wide: true, ph: 'Ex.: um verão tranquilo em Lisboa' }, F.cat('Área da vida', LIFE_AREAS)], photos: 'one', photoLabel: 'Adicionar foto' },
@@ -240,10 +247,14 @@ export function fieldHtml(f, x = {}) {
     case 'time': return `<label class="field">${lab}<input class="input" type="time" id="${id}" name="${name}" value="${esc(String(v || '').slice(0, 5))}" ${f.req ? 'required' : ''}></label>`;
     case 'money': return `<label class="field">${lab}<input class="input num" inputmode="decimal" id="${id}" name="${name}" value="${v ?? ''}" placeholder="0${decimals() ? '.00' : ''}" ${f.req ? 'required' : ''}></label>`;
     case 'number': return `<label class="field">${lab}<input class="input num" inputmode="decimal" id="${id}" name="${name}" value="${v ?? ''}" ${f.req ? 'required' : ''}></label>`;
+    case 'color': {
+      const color = normalizeHexColor(v) || LEGACY_BLOCK_COLORS[x.cat] || normalizeHexColor(f.default) || '#BFDCF5';
+      return `<label class="field">${lab}<span class="hex-wrap"><input type="color" value="${color}" data-bind="block-color-picker" aria-label="Escolher cor do compromisso"><input class="input" type="text" id="${id}" name="${name}" value="${color}" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" inputmode="text" data-bind="block-color-hex" ${f.req ? 'required' : ''} aria-label="Código hexadecimal da cor"></span></label>`;
+    }
     case 'url': return `<label class="field${wide}">${lab}<input class="input" type="url" id="${id}" name="${name}" value="${esc(v || '')}" placeholder="https://"></label>`;
     case 'check': return `<label class="switch${wide}"><input type="checkbox" name="${name}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
     case 'rating': return `<div class="field">${lab}${ratingInput(name, v, f.label)}</div>`;
-    case 'select': return `<label class="field${wide}">${lab}<select class="input" id="${id}" name="${name}">${((typeof f.options === 'function' ? f.options() : f.options) || []).map(([k, l]) => `<option value="${esc(k)}" ${String(v ?? x.__default?.[f.k] ?? '') === String(k) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+    case 'select': return `<label class="field${wide}">${lab}<select class="input" id="${id}" name="${name}" ${f.req ? 'required' : ''}>${((typeof f.options === 'function' ? f.options() : f.options) || []).map(([k, l]) => `<option value="${esc(k)}" ${String(v ?? x.__default?.[f.k] ?? '') === String(k) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
     case 'tags': return `<div class="field wide">${lab}<div class="chips">${f.options.map(t => `<label class="chip"><input type="checkbox" name="${name}" value="${esc(t)}" ${(v || []).includes(t) ? 'checked' : ''}> ${esc(t)}</label>`).join('')}</div></div>`;
     case 'currency': { const cur = v || x.__default?.currency || S.settings.currency || 'USD'; return `<label class="field">${lab}<select class="input" id="${id}" name="${name}">${CURRENCIES.map(([c, n]) => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c} · ${esc(n)}</option>`).join('')}</select></label>`; }
     case 'ref': { const hs = S.items.filter(g => g.kind === f.of); const cur = v || x.__default?.[f.k] || ''; return `<label class="field">${lab}<select class="input" id="${id}" name="${name}"><option value="">${esc(f.none || 'None')}</option>${hs.map(g => `<option value="${esc(g.id)}" ${cur === g.id ? 'selected' : ''}>${esc(g.title || g.data?.name || 'Untitled')}</option>`).join('')}</select></label>`; }
@@ -276,6 +287,11 @@ export function readForm(f, fields, base = {}) {
       case 'country': v = String(f.elements[name]?.value || '') || null; break;
       case 'lines': v = String(f.elements[name]?.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 200); break;
       case 'money': case 'number': v = toNum(f.elements[name]?.value); break;
+      case 'color': {
+        v = normalizeHexColor(f.elements[name]?.value);
+        if (!v) return { error: `${fd.label} deve ser um código hexadecimal válido, como #AABBCC.` };
+        break;
+      }
       default: v = String(f.elements[name]?.value ?? '').trim(); if (v === '') v = null;
     }
     if ((fd.k === 'num' || fd.k === 'd.target') && fd.type === 'select') v = toNum(v);
@@ -301,13 +317,29 @@ export function readForm(f, fields, base = {}) {
 /** Pages can adjust a row before it's saved (BEFORE[kind](row, old)) and react after (AFTER[kind](row, isNew)). */
 export const AFTER = {};
 export const BEFORE = {};
+BEFORE.block = (row) => { row.data.meet = row.data.appointmentType === 'reuniao'; };
+BINDS['block-color-picker'] = (input, type) => {
+  if (type !== 'input' && type !== 'change') return;
+  const text = input.closest('.hex-wrap')?.querySelector('input[type="text"]');
+  if (text) text.value = input.value.toUpperCase();
+};
+BINDS['block-color-hex'] = (input, type) => {
+  const color = normalizeHexColor(input.value);
+  if (!color) return;
+  const picker = input.closest('.hex-wrap')?.querySelector('input[type="color"]');
+  if (picker) picker.value = color;
+  if (type === 'change') input.value = color;
+};
 let pending = []; // files chosen before a new item is saved
 let editAfter = null;
 export function openEditor(kind, x = null, opts = {}) {
   const def = DEFS[kind]; const isNew = !x?.id; const base = { ...(x || {}), kind: kindOf(kind) };
   pending = []; editAfter = opts.after || null;
   const fields = opts.fields || def.fields;
-  const shown = { ...base, __default: opts.defaults || {} };
+  const displayBase = kind === 'block' && !base.data?.appointmentType && base.data?.meet
+    ? { ...base, data: { ...base.data, appointmentType: 'reuniao' } }
+    : base;
+  const shown = { ...displayBase, __default: opts.defaults || {} };
   const photos = def.photos && !isNew ? photosOf(base.id) : [];
   const photoBox = def.photos && !opts.fields ? `<div class="field wide"><span>${def.photos === 'one' ? 'Foto' : 'Fotos'}</span>
     <div class="ed-photos" id="ed-photos">${photos.map(p => `<figure class="ed-ph">${img(p)}<button type="button" class="icon-btn" data-action="ed-photo-del" data-id="${esc(p.id)}" aria-label="Remover foto">${icon('close')}</button></figure>`).join('')}

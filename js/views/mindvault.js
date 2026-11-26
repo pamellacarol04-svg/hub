@@ -4,7 +4,7 @@
 // Archive: a highlight reel (one photo a month), annual reflections, letters to your future self,
 // and the year in numbers.
 import { S, esc, icon, ACTIONS, FORMS, BINDS, rerender, fail, toast, today, addDays, parseDay, DAYS, MONTHS, MONTHS_LONG, fmtShort, fmtLong, daysBetween, plural, hhmm, hooks, $ } from '../core.js';
-import { items, byId, save, patch, remove, dget, sortBy, addBtn, openEditor, CLIP_KINDS, CLIP_STATUS, SESSION_KINDS, WASTE_KINDS, BLOCK_TONES } from '../kinds.js';
+import { items, byId, save, patch, remove, dget, sortBy, addBtn, openEditor, CLIP_KINDS, CLIP_STATUS, SESSION_KINDS, WASTE_KINDS, blockColor } from '../kinds.js';
 import { photosOf, img, PICK_HOOKS, addPhotos } from '../photos.js';
 import { barChart, chime, confetti } from '../ui.js';
 import { GROUPS } from './lightbox.js';
@@ -91,7 +91,7 @@ function tabBoxes() {
   const now = new Date(); const nowM = now.getHours() * 60 + now.getMinutes();
   return `<div class="okr-bar"><b>${esc(fmtLong(d))}</b>${addBtn('block', 'Bloco de tempo', { cls: 'sm right', preset: { day: d, cat: 'sky', data: { start: '09:00', end: '10:00' } } })}</div>
   <section class="timeline card">${pin()}<div class="tl" style="--rows:${H1 - H0}">${Array.from({ length: H1 - H0 }, (_, i) => `<div class="tl-h"><span>${C.hourLabel(H0 + i)}</span></div>`).join('')}
-    ${bl.map(b => { const s = Math.max(H0 * 60, toM(dget(b, 'start'))), e = Math.min(H1 * 60, Math.max(s + 15, toM(dget(b, 'end')))); return `<button class="tl-b tn-${esc(b.cat || 'sky')}" style="top:${((s - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%;height:${((e - s) / ((H1 - H0) * 60) * 100).toFixed(2)}%" data-action="edit" data-id="${esc(b.id)}"><b>${esc(b.title)}</b><small>${esc(hhmm(dget(b, 'start')))}–${esc(hhmm(dget(b, 'end')))}</small></button>`; }).join('')}
+    ${bl.map(b => { const s = Math.max(H0 * 60, toM(dget(b, 'start'))), e = Math.min(H1 * 60, Math.max(s + 15, toM(dget(b, 'end')))); const color = blockColor(b); return `<button class="tl-b tn-${esc(b.cat || 'sky')}" style="${color ? `--block-color:${color};` : ''}top:${((s - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%;height:${((e - s) / ((H1 - H0) * 60) * 100).toFixed(2)}%" data-action="edit" data-id="${esc(b.id)}"><b>${esc(b.title)}</b><small>${esc(hhmm(dget(b, 'start')))}–${esc(hhmm(dget(b, 'end')))}</small></button>`; }).join('')}
     ${nowM >= H0 * 60 && nowM <= H1 * 60 ? `<i class="tl-now" style="top:${((nowM - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%" aria-hidden="true"></i>` : ''}</div></section>
   ${C.energyMap().best ? `<p class="small muted evergreen">${icon('lightning')} Seu mapa de energia indica maior concentração por volta das ${C.hourLabel(C.energyMap().best.h)}. Reserve esse horário para seu trabalho mais difícil.</p>` : ''}`;
 }

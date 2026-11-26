@@ -11,16 +11,23 @@ import { calendarIcs } from '../calendar-export.mjs';
 
 const tog = (key, on, label, sub, kind = 'data') => `<div class="set-row"><span class="sr-t"><b>${esc(label)}</b><small>${esc(sub)}</small></span><label class="tog-wrap"><span class="sr-only">${esc(label)}</span><input type="checkbox" class="tog" data-bind="set-tog" data-k="${key}" data-kind="${kind}" ${on ? 'checked' : ''}></label></div>`;
 const THEME_PT = {
+  custom: ['Personalizada', 'Escolha todas as cores'],
   powder: ['Pó e Peônia', 'Azul bebê e rosa peônia'],
   lilac: ['Carta Lilás', 'Lavanda, manteiga e hortelã'],
   matcha: ['Matcha e Leite', 'Sálvia, aveia e damasco'],
   apricot: ['Sol de Damasco', 'Damasco, coral e céu'],
-  velvet: ['Noite Aveludada', 'Ameixa escura com luzes pastéis'],
+  lavender: ['Lavanda', 'Lavanda, lilás e creme'],
+  peony: ['Peônia', 'Rosa chá, violeta e morango'],
+  lagoon: ['Lagoa', 'Turquesa, água e conchas'],
+  sunbeam: ['Raio de Sol', 'Manteiga, lavanda e sálvia'],
   oxford: ['Oxford', 'Azul-marinho, pedra e latão'],
   olive: ['Campo de Oliveiras', 'Oliva, areia e linho'],
   slate: ['Ardósia', 'Cinzas frios com toque de azul aço'],
   espresso: ['Expresso', 'Café, creme e caramelo'],
-  graphite: ['Grafite', 'Grafite com aço e latão'],
+  sandstone: ['Pedra e Areia', 'Areia, pedra e terracota clara'],
+  mushroom: ['Cogumelo', 'Taupe, rosa seco e musgo'],
+  eucalyptus: ['Eucalipto', 'Verde-fumo, cinza e terracota'],
+  cloud: ['Nuvem', 'Cinza claro, azul e lavanda'],
 };
 const CURRENCY_PT = {
   USD: 'Dólar americano', EUR: 'Euro', GBP: 'Libra esterlina', CAD: 'Dólar canadense',
@@ -35,6 +42,19 @@ const CURRENCY_PT = {
 };
 export function viewSettings() {
   const s = S.settings; const d = D(); const ts = Number(d.textSize ?? 1);
+  const custom = d.customTheme || {};
+  const customColors = {
+    paper: custom.paper || '#FFFDF8', surface: custom.surface || '#FFFFFF', surface2: custom.surface2 || '#F6F0E5',
+    ink: custom.ink || '#342B25', muted: custom.muted || '#74675E', accent: custom.accent || '#A86D8C',
+    accent2: custom.accent2 || '#6F7E52', t1: custom.t1 || '#D6E4F0', t2: custom.t2 || '#F1CEDA',
+    t3: custom.t3 || '#E9D6A5', t4: custom.t4 || '#CADDBD', t5: custom.t5 || '#D7CCEB',
+  };
+  const colorFields = [
+    ['paper', 'Fundo'], ['surface', 'Cartões'], ['surface2', 'Superfícies'],
+    ['ink', 'Texto'], ['muted', 'Texto suave'], ['accent', 'Destaque'],
+    ['accent2', 'Destaque secundário'], ['t1', 'Tonalidade azul'], ['t2', 'Tonalidade rosa'],
+    ['t3', 'Tonalidade dourada'], ['t4', 'Tonalidade verde'], ['t5', 'Tonalidade lilás'],
+  ];
   const calendarResult = new URLSearchParams(location.hash.split('?')[1] || '').get('calendar');
   const calendarFeedback = {
     connected: 'Google Agenda conectado. A sincronização automática está ativa.',
@@ -45,7 +65,14 @@ export function viewSettings() {
   return `${hubHead(0, 'Personalize', 'Suas <em>Configurações</em>', 'A aparência, os dados básicos, seus hábitos e suas informações.')}
   <div class="set-cols"><div class="set-col">
     <section class="card box"><h2>Aparência</h2>
-      <div class="set-row"><span class="sr-t"><b>Paleta</b><small>Cinco suaves, cinco neutras. Noite Aveludada e Grafite são escuras.</small></span></div>${[['soft', 'Suaves'], ['neutral', 'Neutras']].map(([g, gl]) => `<h4 class="pal-g">${gl}</h4><div class="palettes" role="group" aria-label="Paletas ${gl.toLowerCase()}">${THEMES.filter(t => t.group === g).map(t => { const pt = THEME_PT[t.id] || [t.name, t.note]; return `<button class="pal" data-action="theme" data-v="${t.id}" aria-pressed="${themeId() === t.id}"><span class="pal-sw">${t.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span><b>${esc(pt[0])}</b><small>${esc(pt[1])}</small></button>`; }).join('')}</div>`).join('')}
+      <div class="set-row"><span class="sr-t"><b>Paleta</b><small>Escolha entre opções suaves e neutras, todas claras.</small></span></div>${[['soft', 'Suaves'], ['neutral', 'Neutras']].map(([g, gl]) => `<h4 class="pal-g">${gl}</h4><div class="palettes" role="group" aria-label="Paletas ${gl.toLowerCase()}">${THEMES.filter(t => t.group === g).map(t => { const pt = THEME_PT[t.id] || [t.name, t.note]; return `<button class="pal" data-action="theme" data-v="${t.id}" aria-pressed="${themeId() === t.id}"><span class="pal-sw">${t.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span><b>${esc(pt[0])}</b><small>${esc(pt[1])}</small></button>`; }).join('')}</div>`).join('')}
+      <details class="custom-colors" ${themeId() === 'custom' ? 'open' : ''}>
+        <summary><b>Cores personalizadas</b><small>Edite os códigos hexadecimal</small></summary>
+        <form data-form="custom-theme" class="custom-color-form">
+          <div class="custom-color-grid">${colorFields.map(([key, label]) => `<label class="custom-color-field"><span>${esc(label)}</span><span class="hex-wrap"><input type="color" value="${esc(customColors[key])}" data-bind="custom-color" data-key="${key}" aria-label="Escolher ${esc(label)}"><input class="input" type="text" name="${key}" value="${esc(customColors[key])}" maxlength="7" pattern="#[0-9A-Fa-f]{6}" spellcheck="false" inputmode="text"></span></label>`).join('')}</div>
+          <button class="btn solid sm" type="submit">Aplicar cores</button>
+        </form>
+      </details>
       <div class="set-row"><span class="sr-t"><b>Tamanho do texto</b><small>Texto maior, mesma disposição</small></span><div class="tsizes" role="group" aria-label="Tamanho do texto">${[0, 1, 2, 3].map(i => `<button data-action="text-size" data-v="${i}" aria-pressed="${ts === i}" aria-label="Tamanho do texto ${i + 1}" style="font-size:${[.8, 1, 1.2, 1.4][i]}rem">A</button>`).join('')}</div></div>
       ${tog('calm', s.calm, 'Reduzir movimento', 'Sem animações, etiquetas flutuantes ou confetes', 'col')}
       ${tog('decor', s.decor !== false, 'Detalhes visuais', 'Brilhos, fotos inclinadas, escrita manual e confetes', 'col')}
@@ -75,6 +102,25 @@ export function viewSettings() {
 ACTIONS.theme = async (b) => { await saveSettings({ theme: b.dataset.v }); applyTheme(); rerender(); };
 ACTIONS['text-size'] = async (b) => { await saveData({ textSize: Number(b.dataset.v) }); applyTheme(); rerender(); };
 BINDS['set-tog'] = async (t, type) => { if (type !== 'change') return; const k = t.dataset.k; if (t.dataset.kind === 'col') await saveSettings({ [k]: t.checked }); else await saveData({ [k]: t.checked }); applyTheme(); rerender(); };
+BINDS['custom-color'] = (input, type) => {
+  if (type !== 'change') return;
+  const text = input.closest('.hex-wrap')?.querySelector('input[type="text"]');
+  if (text) text.value = input.value.toUpperCase();
+};
+FORMS['custom-theme'] = async (form) => {
+  const keys = ['paper','surface','surface2','ink','muted','accent','accent2','t1','t2','t3','t4','t5'];
+  const customTheme = {};
+  for (const key of keys) {
+    const value = String(form.elements[key]?.value || '').trim().toUpperCase();
+    if (!/^#[0-9A-F]{6}$/.test(value)) { toast(`Código hexadecimal inválido em ${key}.`); return; }
+    customTheme[key] = value;
+  }
+  await saveData({ customTheme });
+  await saveSettings({ theme: 'custom' });
+  applyTheme();
+  rerender();
+  toast('Cores personalizadas aplicadas.');
+};
 ACTIONS['calendar-export'] = () => {
   const entries = S.items.filter(item => ['event', 'block'].includes(item.kind) && /^\d{4}-\d{2}-\d{2}$/.test(item.day || ''));
   if (!entries.length) { toast('Não há eventos ou blocos com data para exportar.'); return; }

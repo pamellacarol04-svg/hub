@@ -4,7 +4,7 @@
 // (yearly goals with steps, twelve month calendars and the key dates of each month). All of them
 // work out their dates from today and step forward or back, so they never run out.
 import { S, esc, icon, ACTIONS, FORMS, BINDS, rerender, fail, toast, today, addDays, addMonths, parseDay, isoDate, DAYS, DAYS_LONG, MONTHS, MONTHS_LONG, fmtShort, fmtLong, daysBetween, plural, hhmm } from '../core.js';
-import { items, byId, save, patch, dget, sortBy, addBtn, LIFE_AREAS } from '../kinds.js';
+import { items, byId, save, patch, dget, sortBy, addBtn, LIFE_AREAS, blockColor } from '../kinds.js';
 import { D, saveData, card, emptyNote, label, meter, sparkleWin, bigWin, pin, binder, faces } from './common.js';
 import { taskRow } from './home.js';
 import * as C from '../hub.js';
@@ -60,7 +60,7 @@ export function tabDay() {
   <div class="day-grid">
     <section class="timeline card day-tl">${pin()}<header class="card-head"><h2>A <em>agenda</em></h2>${addBtn('block', 'Bloco de tempo', { cls: 'sm ghost', preset: { day: d, cat: 'sky', data: { start: '09:00', end: '10:00' } } })}</header>
       <div class="tl" style="--rows:${H1 - H0}">${Array.from({ length: H1 - H0 }, (_, i) => { const h = H0 + i; const hh = `${String(h).padStart(2, '0')}:00`; return `<div class="tl-h"><span>${C.hourLabel(h)}</span><button class="tl-slot" data-action="add" data-kind="block" data-preset="${esc(JSON.stringify({ day: d, cat: 'sky', data: { start: hh, end: `${String(Math.min(23, h + 1)).padStart(2, '0')}:00` } }))}" aria-label="Planejar algo às ${C.hourLabel(h)}"></button></div>`; }).join('')}
-      ${bl.map(b => { const s = Math.max(H0 * 60, toM(dget(b, 'start'))), e = Math.min(H1 * 60, Math.max(s + 20, toM(dget(b, 'end')))); return `<button class="tl-b tn-${esc(b.cat || 'sky')}" style="top:${((s - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%;height:${((e - s) / ((H1 - H0) * 60) * 100).toFixed(2)}%" data-action="edit" data-id="${esc(b.id)}"><b>${dget(b, 'meet') ? `${icon('users')} ` : ''}${esc(b.title)}</b><small>${esc(hhmm(dget(b, 'start')))}–${esc(hhmm(dget(b, 'end')))}</small></button>`; }).join('')}
+      ${bl.map(b => { const s = Math.max(H0 * 60, toM(dget(b, 'start'))), e = Math.min(H1 * 60, Math.max(s + 20, toM(dget(b, 'end')))); const color = blockColor(b); return `<button class="tl-b tn-${esc(b.cat || 'sky')}" style="${color ? `--block-color:${color};` : ''}top:${((s - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%;height:${((e - s) / ((H1 - H0) * 60) * 100).toFixed(2)}%" data-action="edit" data-id="${esc(b.id)}"><b>${dget(b, 'meet') ? `${icon('users')} ` : ''}${esc(b.title)}</b><small>${esc(hhmm(dget(b, 'start')))}–${esc(hhmm(dget(b, 'end')))}</small></button>`; }).join('')}
       ${isToday && nowM >= H0 * 60 && nowM <= H1 * 60 ? `<i class="tl-now" style="top:${((nowM - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%" aria-hidden="true"></i>` : ''}</div>
       <p class="small muted">Toque em qualquer horário para planejar algo.</p></section>
     <div class="day-side">

@@ -2,8 +2,8 @@
 // manifestation log.  2 · Strategic Planning: the evergreen week (tasks fill in by date, overdue ones
 // roll forward), a weekly reset checklist, the 12-week year with an execution score, OKRs with key
 // results that add themselves up, and quarterly reviews that start with the quarter's numbers.
-import { S, esc, icon, ACTIONS, FORMS, BINDS, rerender, fail, toast, today, addDays, parseDay, DAYS, MONTHS, fmtShort, fmtLong, daysBetween, plural, moneyWhole, round2 } from '../core.js';
-import { items, byId, save, patch, dget, sortBy, addBtn, LIFE_AREAS, QUARTERS } from '../kinds.js';
+import { S, esc, icon, ACTIONS, FORMS, BINDS, rerender, fail, toast, today, addDays, parseDay, DAYS, DAYS_LONG, MONTHS, fmtShort, fmtLong, daysBetween, plural, hhmm, moneyWhole, round2 } from '../core.js';
+import { items, byId, save, patch, dget, sortBy, addBtn, LIFE_AREAS, QUARTERS, PLAN_CATEGORIES, blockColor } from '../kinds.js';
 import { photosOf, PICK_HOOKS } from '../photos.js';
 import { GROUPS } from './lightbox.js';
 import { D, saveData, card, hubHead, folderTabs, pickTab, emptyNote, photoDrop, masonry, itemsFromFiles, label, meter, sparkleWin, bigWin, seg, pin, twoCol, amt } from './common.js';
@@ -52,20 +52,51 @@ function viewVision(r) {
 // 2 · Strategic Planning
 // =====================================================================
 const PTABS = [['day', 'Diário'], ['week', 'Semanal'], ['quarter', 'Trimestral'], ['year', 'Anual'], ['twelve', 'Ano de 12 semanas'], ['okr', 'OKRs'], ['review', 'Revisão trimestral']];
-const RESET_DEFAULT = ['Esvazie todas as caixas de entrada', 'Revise a semana passada: conquistas e erros', 'Confira a agenda da semana', 'Escolha as 3 principais prioridades', 'Planeje treinos e refeições', 'Confira gastos e contas', 'Organize a mesa e os downloads', 'Defina uma intenção para a semana'];
-const resetList = () => D().weeklyReset || RESET_DEFAULT;
 ACTIONS['wk-nav'] = (b) => { S.ui.wk = b.dataset.v === '0' ? 0 : (S.ui.wk || 0) + Number(b.dataset.v); rerender(); };
-ACTIONS['reset-tick'] = async (b) => { const wk = b.dataset.wk; const all = { ...(D().resetDone || {}) }; const s = new Set(all[wk] || []); const i = Number(b.dataset.i); s.has(i) ? s.delete(i) : s.add(i); all[wk] = [...s]; await saveData({ resetDone: all }); if (s.size === resetList().length) await sparkleWin('Semana revisada. Você está pronto.', b); rerender(); };
-FORMS['reset-edit'] = async (f) => { const l = f.elements.list.value.split(/\r?\n/).map(t => t.trim()).filter(Boolean).slice(0, 20); await saveData({ weeklyReset: l.length ? l : RESET_DEFAULT }); toast('Checklist salvo.'); rerender(); };
+ACTIONS['week-page-nav'] = (b) => { S.ui.weekPage = b.dataset.v === '0' ? 0 : (S.ui.weekPage || 0) + Number(b.dataset.v); rerender(); };
+FORMS['week-task'] = async (form) => {
+  const title = form.elements.task.value.trim();
+  if (!title) return;
+  try {
+    await save({ kind: 'task', title: title.slice(0, 300), day: form.dataset.day, cat: 'med', status: 'todo', data: { fixedDate: true } });
+    form.reset();
+    rerender();
+  } catch (e) { fail(e); }
+};
+ACTIONS['week-priority'] = async (button) => {
+  const task = byId(button.dataset.id);
+  if (!task || task.kind !== 'task') return;
+  try {
+    await patch(task, { data: { weekPriority: !dget(task, 'weekPriority') } });
+    rerender();
+  } catch (e) { fail(e); }
+};
 function tabWeek() {
-  const wk = addDays(C.weekOf(), 7 * (S.ui.wk || 0)); const days = C.weekDays(wk); const t = today(); const v = C.velocity(wk);
-  const doneSet = new Set((D().resetDone || {})[wk] || []); const rl = resetList();
+  const wk = addDays(C.weekOf(), 4 * (S.ui.weekPage || 0)); const days = Array.from({ length: 4 }, (_, i) => addDays(wk, i)); const t = today(); const v = C.velocity(C.weekOf());
   const dayTasks = (d) => sortBy(C.tasks().filter(x => (x.status === 'done' ? (dget(x, 'doneOn') || x.day) : C.taskDay(x)) === d), x => (x.status === 'done' ? 9 : 0) + (C.PRIO[x.cat] ?? 1));
-  return `<div class="wk-bar"><button class="icon-btn" data-action="wk-nav" data-v="-1" aria-label="Semana anterior">${icon('back')}</button><b>${esc(fmtShort(wk))} – ${esc(fmtShort(addDays(wk, 6)))}</b><span class="hilite hl-blue">Semana ${C.isoWeek(wk)}</span><button class="icon-btn" data-action="wk-nav" data-v="1" aria-label="Próxima semana">${icon('fwd')}</button>${S.ui.wk ? `<button class="btn sm ghost" data-action="wk-nav" data-v="0">Esta semana</button>` : ''}<span class="right small muted">${v.done} de ${plural(v.total, 'tarefa')} concluídas · ${Math.round(v.pct * 100)}%</span></div>
+  const dayBlocks = (d) => sortBy(items('block').filter(x => x.day === d), x => dget(x, 'start') || '');
+  return `<div class="wk-bar"><button class="icon-btn" data-action="week-page-nav" data-v="-1" aria-label="Quatro dias anteriores">${icon('back')}</button><b>${esc(fmtShort(wk))} – ${esc(fmtShort(addDays(wk, 3)))}</b><span class="hilite hl-blue">4 dias · Semana ${C.isoWeek(wk)}</span><button class="icon-btn" data-action="week-page-nav" data-v="1" aria-label="Próximos quatro dias">${icon('fwd')}</button>${S.ui.weekPage ? `<button class="btn sm ghost" data-action="week-page-nav" data-v="0">Esta semana</button>` : ''}<span class="right small muted">${v.done} de ${plural(v.total, 'tarefa')} concluídas · ${Math.round(v.pct * 100)}%</span></div>
   <p class="small muted evergreen">${icon('repeat')} Planejamento contínuo: esta página sempre acompanha sua semana atual. Tarefas abertas de dias anteriores avançam automaticamente.</p>
-  <div class="wk-grid">${days.map(d => { const l = dayTasks(d); return `<section class="wk-day ${d === t ? 'today' : ''} ${d < t ? 'past' : ''}"><header><b>${esc(DAYS[parseDay(d).getDay()])}</b><span>${parseDay(d).getDate()}</span></header><ul class="tasks">${l.map(x => taskRow(x)).join('')}</ul><button class="add-mini" data-action="add" data-kind="task" data-preset="${esc(JSON.stringify({ day: d, cat: 'med', status: 'todo' }))}" aria-label="Adicionar uma tarefa em ${esc(fmtShort(d))}">${icon('plus')}</button></section>`; }).join('')}</div>
-  ${card(`Revisão <em>semanal</em>`, `<div class="reset-row">${meter(doneSet.size / rl.length, 'c4', 'Revisão semanal')}<small>${doneSet.size}/${rl.length}</small></div><ul class="checks">${rl.map((s, i) => `<li><button class="cb ${doneSet.has(i) ? 'on' : ''}" data-action="reset-tick" data-wk="${wk}" data-i="${i}" aria-pressed="${doneSet.has(i)}">${icon('check')}<span>${esc(s)}</span></button></li>`).join('')}</ul>
-    <details><summary class="small">Editar checklist</summary><form data-form="reset-edit"><label class="sr-only" for="rl">Checklist</label><textarea class="input" id="rl" name="list" rows="7">${esc(rl.join('\n'))}</textarea><button class="btn sm solid">Salvar</button></form></details>`, { cls: 'reset-card lined', clip: true })}`;
+  <div class="wk-grid">${days.map(d => {
+    const x = parseDay(d); const l = dayTasks(d); const open = l.filter(task => task.status !== 'done'); const done = l.filter(task => task.status === 'done');
+    const pending = open.length; const total = l.length; const pctDone = total ? Math.round(done.length / total * 100) : 0;
+    const blocks = dayBlocks(d); const priorities = l.filter(task => dget(task, 'weekPriority'));
+    const dailyTasks = l.filter(task => !dget(task, 'weekPriority'));
+    const dailyDone = dailyTasks.filter(task => task.status === 'done').length;
+    return `<section class="wk-day ${d === t ? 'today' : ''} ${d < t ? 'past' : ''}">
+      <header class="week-day-head"><div><b>${x.getDate()}</b><strong>${esc(DAYS_LONG[x.getDay()])}</strong></div>${d === t ? '<span class="week-today">Hoje</span>' : ''}</header>
+      <div class="week-day-date">${esc(fmtLong(d))}</div>
+      <section class="week-day-section week-progress">
+        <h3>Progresso diário</h3>
+        <div class="week-progress-main"><strong>${pctDone}%</strong><dl><div><dt>Concluídas</dt><dd>${done.length}</dd></div><div><dt>Pendentes</dt><dd>${pending}</dd></div><div><dt>Total</dt><dd>${total}</dd></div></dl></div>
+      </section>
+      <section class="week-day-section"><h3>Prioridades</h3>${priorities.length ? `<ul class="tasks week-priorities">${priorities.map(task => taskRow(task, { weekPriority: true })).join('')}</ul>` : '<p>Nenhuma prioridade.</p>'}</section>
+      <section class="week-day-section week-tasks"><div class="week-section-title"><h3>Tarefas do dia</h3><small>${dailyDone}/${dailyTasks.length}</small></div>${dailyTasks.length ? `<ul class="tasks">${dailyTasks.map(task => taskRow(task, { weekPriority: true })).join('')}</ul>` : '<p>Nenhuma tarefa.</p>'}
+        <form class="week-task-form" data-form="week-task" data-day="${d}" autocomplete="off"><label class="sr-only" for="week-task-${d}">Adicionar tarefa</label><input class="input" id="week-task-${d}" name="task" maxlength="300" placeholder="Adicionar tarefa..."><button class="btn square" aria-label="Adicionar tarefa">${icon('plus')}</button></form>
+      </section>
+      <section class="week-day-section week-agenda"><h3>Agenda</h3>${blocks.length ? `<ul class="week-blocks">${blocks.map(block => { const color = blockColor(block); const start = dget(block, 'start'); const end = dget(block, 'end'); const time = start || end ? `${start ? hhmm(start) : '—'}–${end ? hhmm(end) : '—'}` : ''; const category = PLAN_CATEGORIES[dget(block, 'category')] || 'Sem categoria'; return `<li ${color ? `style="--block-color:${color}"` : ''}><button class="link-plain" data-action="edit" data-id="${esc(block.id)}">${time ? `${esc(time)} · ` : ''}${esc(block.title)}</button><small>Categoria: ${esc(category)}</small></li>`; }).join('')}</ul>` : '<p>Nenhum compromisso.</p>'}<button class="week-event" data-action="add" data-kind="block" data-preset="${esc(JSON.stringify({ day: d, cat: 'sky', data: { start: '09:00', end: '10:00' } }))}"><strong>Evento</strong>${icon('calendar')}</button></section>
+    </section>`;
+  }).join('')}</div>`;
 }
 // The 12-week year
 const sprintNow = () => { const l = sortBy(items('sprint'), s => s.day || '', -1); return l.find(s => s.day <= today() && daysBetween(s.day, today()) < 84) || l[0] || null; };

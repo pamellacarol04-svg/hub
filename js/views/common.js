@@ -4,7 +4,7 @@
 import { S, esc, icon, ACTIONS, FORMS, rerender, route, fail, toast, today, moneyWhole, pop, buzz, openModal, closeModal, plural, calm, sparkle } from '../core.js';
 import { saveSettings, confetti, chime } from '../ui.js';
 import { HUBS, HUB_TABS } from '../hubs.js';
-import { items, save, patch, remove, sortBy, byId, dget, addBtn, BLOCK_TONES, EXP_CATS, INC_CATS, PRIORITIES } from '../kinds.js';
+import { items, save, patch, remove, sortBy, byId, dget, addBtn, EXP_CATS, INC_CATS, PRIORITIES, PLAN_CATEGORIES, APPOINTMENT_TYPES, normalizeHexColor } from '../kinds.js';
 import { img, photosOf, addPhotos, PICK_HOOKS } from '../photos.js';
 
 export const D = () => S.settings.data || {};
@@ -89,20 +89,22 @@ export const bigWin = (msg) => { if (S.settings.decor !== false) confetti(110); 
 // ---------------------------------------------------------------------
 // Quick capture from anywhere: the inbox, a task, a meeting, money in or out
 // ---------------------------------------------------------------------
-const QUICK = [['note', 'Inbox', 'inbox'], ['task', 'Task', 'checkCircle'], ['block', 'Meeting', 'clock'], ['txn', 'Money', 'wallet']];
+const QUICK = [['note', 'Entrada', 'inbox'], ['task', 'Tarefa', 'checkCircle'], ['block', 'Compromisso', 'clock'], ['txn', 'Dinheiro', 'wallet']];
+const planCategoryField = () => `<label class="field"><span>Categoria</span><select class="input" name="category"><option value="">Sem categoria</option>${Object.entries(PLAN_CATEGORIES).map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('')}</select></label>`;
+const appointmentTypeField = () => `<label class="field"><span>Tipo de compromisso</span><select class="input" name="appointmentType" required>${Object.entries(APPOINTMENT_TYPES).map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('')}</select></label>`;
+const appointmentColorField = () => `<label class="field"><span>Cor do compromisso (HEX)</span><span class="hex-wrap"><input type="color" value="#BFDCF5" data-bind="block-color-picker" aria-label="Escolher cor do compromisso"><input class="input" type="text" name="color" value="#BFDCF5" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" inputmode="text" data-bind="block-color-hex" required aria-label="Código hexadecimal da cor"></span></label>`;
 export function openQuick(mode = 'note') {
   const tabs = `<div class="q-tabs" role="tablist">${QUICK.map(([v, l, ic]) => `<button type="button" role="tab" class="q-tab" data-action="quick" data-v="${v}" aria-selected="${mode === v}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
   let body = '';
-  if (mode === 'block') body = `<form class="q-form" data-form="qblock" autocomplete="off"><label class="field"><span>What</span><input class="input" name="title" maxlength="200" placeholder="e.g. Client call" autofocus></label>
-    <div class="form-grid three"><label class="field"><span>Day</span><input class="input" type="date" name="day" value="${today()}"></label><label class="field"><span>Starts</span><input class="input" type="time" name="start" value="09:00"></label><label class="field"><span>Ends</span><input class="input" type="time" name="end" value="10:00"></label></div>
-    <label class="switch"><input type="checkbox" name="meet" checked> It’s a meeting</label>
-    <div class="q-tones">${Object.entries(BLOCK_TONES).map(([k, l], i) => `<label class="q-tone tn-${k}"><input type="radio" name="cat" value="${k}" ${i === 0 ? 'checked' : ''}><span>${esc(l)}</span></label>`).join('')}</div><button class="btn solid block">Add to the calendar</button></form>`;
-  else if (mode === 'txn') body = `<form class="q-form" data-form="qtxn" autocomplete="off"><div class="q-io" role="radiogroup" aria-label="In or out"><label><input type="radio" name="io" value="out" checked><span>Money out</span></label><label><input type="radio" name="io" value="in"><span>Money in</span></label></div><label class="field"><span>Amount</span><input class="input big-in" name="amount" inputmode="decimal" placeholder="0" autofocus></label><label class="field"><span>What</span><input class="input" name="title" maxlength="200" placeholder="e.g. Iced latte"></label>
-    <label class="field"><span>Category</span><select class="input" name="cat">${Object.entries(EXP_CATS).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}${Object.entries(INC_CATS).map(([k, l]) => `<option value="${k}">${esc(l)} (income)</option>`).join('')}</select></label><button class="btn solid block">Log it</button></form>`;
-  else if (mode === 'task') body = `<form class="q-form" data-form="qtask" autocomplete="off"><label class="field"><span>Task</span><input class="input" name="title" maxlength="200" placeholder="e.g. Send the invoice" autofocus></label><div class="form-grid"><label class="field"><span>Do on</span><input class="input" type="date" name="day" value="${today()}"></label><label class="field"><span>Priority</span><select class="input" name="cat">${Object.entries(PRIORITIES).map(([k, l]) => `<option value="${k}" ${k === 'med' ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-    <label class="field"><span>Project</span><select class="input" name="project"><option value="">No project</option>${items('project').filter(p => p.status !== 'done').map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select></label><button class="btn solid block">Add the task</button></form>`;
-  else body = `<form class="q-form" data-form="qnote" autocomplete="off"><label class="sr-only" for="q-note">Inbox</label><textarea class="input dump-in" id="q-note" name="text" rows="5" maxlength="4000" placeholder="A thought, a task, a link. One per line. Sort them later from the Inbox on Home." autofocus></textarea><button class="btn solid block">Drop it in the inbox</button></form>`;
-  openModal(`<div class="modal-inner quick-modal"><button type="button" class="icon-btn lm-close" data-action="close-modal" aria-label="Close">${icon('close')}</button><h2 class="q-h">Quick <em>capture</em></h2>${tabs}${body}</div>`, { size: 'narrow' });
+  if (mode === 'block') body = `<form class="q-form" data-form="qblock" autocomplete="off"><label class="field"><span>Título</span><input class="input" name="title" maxlength="200" placeholder="Ex.: Reunião com cliente" autofocus></label>
+    <div class="form-grid three"><label class="field"><span>Data</span><input class="input" type="date" name="day" value="${today()}"></label><label class="field"><span>Início</span><input class="input" type="time" name="start" value="09:00"></label><label class="field"><span>Término</span><input class="input" type="time" name="end" value="10:00"></label></div>${planCategoryField()}
+    ${appointmentTypeField()}${appointmentColorField()}<button class="btn solid block">Adicionar à agenda</button></form>`;
+  else if (mode === 'txn') body = `<form class="q-form" data-form="qtxn" autocomplete="off"><div class="q-io" role="radiogroup" aria-label="Entrada ou saída"><label><input type="radio" name="io" value="out" checked><span>Despesa</span></label><label><input type="radio" name="io" value="in"><span>Receita</span></label></div><label class="field"><span>Valor</span><input class="input big-in" name="amount" inputmode="decimal" placeholder="0" autofocus></label><label class="field"><span>Descrição</span><input class="input" name="title" maxlength="200" placeholder="Ex.: Café"></label>
+    <label class="field"><span>Categoria</span><select class="input" name="cat">${Object.entries(EXP_CATS).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}${Object.entries(INC_CATS).map(([k, l]) => `<option value="${k}">${esc(l)} (receita)</option>`).join('')}</select></label><button class="btn solid block">Registrar</button></form>`;
+  else if (mode === 'task') body = `<form class="q-form" data-form="qtask" autocomplete="off"><label class="field"><span>Tarefa</span><input class="input" name="title" maxlength="200" placeholder="Ex.: Enviar a fatura" autofocus></label><div class="form-grid"><label class="field"><span>Data</span><input class="input" type="date" name="day" value="${today()}"></label><label class="field"><span>Prioridade</span><select class="input" name="cat">${Object.entries(PRIORITIES).map(([k, l]) => `<option value="${k}" ${k === 'med' ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>${planCategoryField()}
+    <label class="field"><span>Projeto</span><select class="input" name="project"><option value="">Sem projeto</option>${items('project').filter(p => p.status !== 'done').map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('')}</select></label><button class="btn solid block">Adicionar tarefa</button></form>`;
+  else body = `<form class="q-form" data-form="qnote" autocomplete="off"><label class="sr-only" for="q-note">Caixa de entrada</label><textarea class="input dump-in" id="q-note" name="text" rows="5" maxlength="4000" placeholder="Uma ideia, tarefa ou link. Escreva um por linha e organize depois na Caixa de entrada." autofocus></textarea><button class="btn solid block">Salvar na caixa de entrada</button></form>`;
+  openModal(`<div class="modal-inner quick-modal"><button type="button" class="icon-btn lm-close" data-action="close-modal" aria-label="Fechar">${icon('close')}</button><h2 class="q-h">Captura <em>rápida</em></h2>${tabs}${body}</div>`, { size: 'narrow' });
 }
 ACTIONS.quick = (b) => openQuick(b.dataset.v || 'note');
 /** Lines into the inbox: links become links, "todo:" or "- [ ]" become tasks, the rest are thoughts. */
@@ -116,20 +118,24 @@ export async function capture(text) {
   return n;
 }
 FORMS.qnote = async (f) => {
-  const t = f.elements.text.value.trim(); if (!t) { toast('Write something first.', { error: true }); return; }
-  try { const n = await capture(t); closeModal(); toast(`${plural(n, 'thing')} in the inbox.`); rerender(); } catch (e) { fail(e); }
+  const t = f.elements.text.value.trim(); if (!t) { toast('Escreva algo primeiro.', { error: true }); return; }
+  try { const n = await capture(t); closeModal(); toast(`${plural(n, 'item', 'itens')} na caixa de entrada.`); rerender(); } catch (e) { fail(e); }
 };
 FORMS.qtask = async (f) => {
-  const t = f.elements.title.value.trim(); if (!t) { toast('What’s the task?', { error: true }); return; }
-  try { await save({ kind: 'task', title: t.slice(0, 300), day: f.elements.day.value || today(), cat: f.elements.cat.value || 'med', status: 'todo', parent_id: f.elements.project.value || null }); closeModal(); toast('Added.'); rerender(); } catch (e) { fail(e); }
+  const t = f.elements.title.value.trim(); if (!t) { toast('Digite o nome da tarefa.', { error: true }); return; }
+  try { await save({ kind: 'task', title: t.slice(0, 300), day: f.elements.day.value || today(), cat: f.elements.cat.value || 'med', status: 'todo', parent_id: f.elements.project.value || null, data: { category: f.elements.category.value || null } }); closeModal(); toast('Tarefa adicionada.'); rerender(); } catch (e) { fail(e); }
 };
 FORMS.qblock = async (f) => {
-  const t = f.elements.title.value.trim(); if (!t) { toast('What is it?', { error: true }); return; }
-  try { await save({ kind: 'block', title: t.slice(0, 200), day: f.elements.day.value || today(), cat: f.querySelector('input[name=cat]:checked')?.value || 'sky', data: { start: f.elements.start.value || '09:00', end: f.elements.end.value || '10:00', meet: f.elements.meet.checked } }); closeModal(); toast('On the calendar.'); rerender(); } catch (e) { fail(e); }
+  const t = f.elements.title.value.trim(); if (!t) { toast('Digite um título.', { error: true }); return; }
+  const appointmentType = f.elements.appointmentType.value;
+  if (!appointmentType) { toast('Selecione o tipo de compromisso.', { error: true }); return; }
+  const color = normalizeHexColor(f.elements.color.value);
+  if (!color) { toast('Informe uma cor hexadecimal válida, como #AABBCC.', { error: true }); return; }
+  try { await save({ kind: 'block', title: t.slice(0, 200), day: f.elements.day.value || today(), cat: 'sky', data: { start: f.elements.start.value || '09:00', end: f.elements.end.value || '10:00', appointmentType, color, meet: appointmentType === 'reuniao', category: f.elements.category.value || null } }); closeModal(); toast('Adicionado à agenda.'); rerender(); } catch (e) { fail(e); }
 };
 FORMS.qtxn = async (f) => {
-  const a = Number(String(f.elements.amount.value).replace(/[^\d.]/g, '')); if (!a) { toast('Type an amount.', { error: true }); return; }
+  const a = Number(String(f.elements.amount.value).replace(/[^\d.]/g, '')); if (!a) { toast('Informe um valor.', { error: true }); return; }
   const io = f.querySelector('input[name=io]:checked')?.value || 'out'; let cat = f.elements.cat.value; if (io === 'in' && !INC_CATS[cat]) cat = 'other'; if (io === 'out' && !EXP_CATS[cat]) cat = 'other';
-  try { await save({ kind: 'txn', amount: a, title: f.elements.title.value.trim().slice(0, 200) || (io === 'in' ? 'Money in' : 'Money out'), status: io, cat, day: today() }); closeModal(); toast(`${moneyWhole(a)} logged.`); rerender(); } catch (e) { fail(e); }
+  try { await save({ kind: 'txn', amount: a, title: f.elements.title.value.trim().slice(0, 200) || (io === 'in' ? 'Receita' : 'Despesa'), status: io, cat, day: today() }); closeModal(); toast(`${moneyWhole(a)} registrado.`); rerender(); } catch (e) { fail(e); }
 };
 export { plural, calm, addBtn, photosOf, img, PICK_HOOKS, byId, dget };

@@ -35,9 +35,9 @@ export const greeting = () => { const h = new Date().getHours(); return h < 5 ? 
 // ---------------------------------------------------------------------
 export const PRIO = { high: 0, med: 1, low: 2 };
 export const isDone = (t) => t.status === 'done';
-/** The day a task shows up on: its own date, or today if it's open and overdue. */
-export const taskDay = (t, d = today()) => (!isDone(t) && t.day && t.day < d ? d : t.day);
-export const carried = (t, d = today()) => (!isDone(t) && t.day && t.day < d ? daysBetween(t.day, d) : 0);
+/** The day a task shows up on: its own date, or today if it's open and overdue, unless date-pinned. */
+export const taskDay = (t, d = today()) => (!isDone(t) && !dget(t, 'fixedDate') && t.day && t.day < d ? d : t.day);
+export const carried = (t, d = today()) => (!isDone(t) && !dget(t, 'fixedDate') && t.day && t.day < d ? daysBetween(t.day, d) : 0);
 export const tasks = () => items('task');
 export const tasksOn = (d = today()) => sortBy(tasks().filter(t => taskDay(t, today()) === d && (!isDone(t) || dget(t, 'doneOn') === d || t.day === d)), t => (isDone(t) ? 9 : 0) + (PRIO[t.cat] ?? 1));
 export const tasksIn = (a, b) => tasks().filter(t => { const d = isDone(t) ? (dget(t, 'doneOn') || t.day) : taskDay(t); return d && d >= a && d <= b; });

@@ -83,20 +83,27 @@ export const S = {
 export const firstName = () => (S.settings.display_name || '').split(' ')[0];
 
 // ---------------------------------------------------------------------
-// Looks: ten palettes, five soft and five neutral (two of them dark). Text size, reduce motion and
+// Looks: light palettes, soft and neutral. Text size, reduce motion and
 // "hide exact balances" live in settings too.
 // ---------------------------------------------------------------------
 export const THEMES = [
+  { id: 'custom', group: 'soft', name: 'Personalizada', note: 'Escolha todas as cores', sw: ['#FFFDF8', '#F6F0E5', '#A86D8C', '#DCCB9D', '#342B25'] },
   { id: 'powder', group: 'soft', name: 'Pó e Peônia', note: 'Azul bebê e rosa peônia', sw: ['#FCF8F3', '#BFDCF5', '#F9C9DF', '#F6E3A1', '#1F1C2C'] },
   { id: 'lilac', group: 'soft', name: 'Carta Lilás', note: 'Lavanda, manteiga e hortelã', sw: ['#FBF8FC', '#D9CCF4', '#F8E7A6', '#C7EBDA', '#26213A'] },
   { id: 'matcha', group: 'soft', name: 'Matcha e Leite', note: 'Sálvia, aveia e damasco', sw: ['#F8F6EE', '#C9DDBF', '#F6D2B8', '#EFE4C7', '#22301F'] },
   { id: 'apricot', group: 'soft', name: 'Sol de Damasco', note: 'Damasco, coral e céu', sw: ['#FFF8F1', '#FFD3B0', '#F9B8B0', '#C9E2F5', '#2C211B'] },
-  { id: 'velvet', group: 'soft', name: 'Noite aveludada', note: 'Ameixa escura com luzes pastéis', dark: true, sw: ['#1D1824', '#2A2333', '#F3A9CC', '#A9CDF2', '#F4EEF6'] },
+  { id: 'lavender', group: 'soft', name: 'Lavanda', note: 'Lavanda, lilás e creme', sw: ['#FAF8FD', '#DCCFEF', '#C9D7F2', '#F1D8E5', '#302A40'] },
+  { id: 'peony', group: 'soft', name: 'Peônia', note: 'Rosa chá, violeta e morango', sw: ['#FCF5F7', '#F3C8D8', '#D8C7EE', '#F6D3CA', '#372735'] },
+  { id: 'lagoon', group: 'soft', name: 'Lagoa', note: 'Turquesa, água e conchas', sw: ['#F3FAF8', '#BDE3D8', '#A9D7E8', '#F2D2C2', '#183338'] },
+  { id: 'sunbeam', group: 'soft', name: 'Raio de Sol', note: 'Manteiga, lavanda e sálvia', sw: ['#FFFBEF', '#F5E58A', '#DCCDEF', '#C9DFBE', '#30301F'] },
   { id: 'oxford', group: 'neutral', name: 'Oxford', note: 'Azul-marinho, pedra e latão', sw: ['#F5F3EE', '#D6DCE6', '#E5DCCB', '#C9B37E', '#18233A'] },
   { id: 'olive', group: 'neutral', name: 'Campo de Oliveiras', note: 'Oliva, areia e linho', sw: ['#F3F1E8', '#D5D9BC', '#E6D7B8', '#C9C3AE', '#262A1C'] },
   { id: 'slate', group: 'neutral', name: 'Ardósia', note: 'Cinzas frios com toque de azul aço', sw: ['#F2F3F4', '#D3DAE1', '#DDDBD6', '#B9C4CC', '#1D2328'] },
   { id: 'espresso', group: 'neutral', name: 'Expresso', note: 'Café, creme e caramelo', sw: ['#F6F1EA', '#E3D2BF', '#D9CBB8', '#C7A98A', '#2A1F18'] },
-  { id: 'graphite', group: 'neutral', name: 'Grafite', note: 'Grafite com aço e latão', dark: true, sw: ['#18191B', '#25272A', '#B8C6D3', '#D7C08E', '#ECEAE6'] },
+  { id: 'sandstone', group: 'neutral', name: 'Pedra e Areia', note: 'Areia, pedra e terracota clara', sw: ['#F8F5EF', '#DDD2C2', '#CBBEAC', '#DABAA8', '#3C342D'] },
+  { id: 'mushroom', group: 'neutral', name: 'Cogumelo', note: 'Taupe, rosa seco e musgo', sw: ['#F6F2ED', '#D8CEC3', '#DFC9C7', '#CBD1BD', '#332E29'] },
+  { id: 'eucalyptus', group: 'neutral', name: 'Eucalipto', note: 'Verde-fumo, cinza e terracota', sw: ['#F2F5F1', '#CAD8CE', '#C9D1CF', '#DDBAA4', '#26352F'] },
+  { id: 'cloud', group: 'neutral', name: 'Nuvem', note: 'Cinza claro, azul e lavanda', sw: ['#F7F8FA', '#DEE4EA', '#D5DCE8', '#DDD5E8', '#303744'] },
 ];
 export function themeId() { const t = S.settings.theme; return THEMES.some(x => x.id === t) ? t : 'powder'; }
 export const isDark = () => Boolean(THEMES.find(x => x.id === themeId())?.dark);
@@ -104,6 +111,24 @@ export function applyTheme() {
   const root = document.documentElement; const id = themeId(); const dark = isDark();
   root.dataset.theme = id; root.style.colorScheme = dark ? 'dark' : 'light';
   const D = S.settings.data || {};
+  if (id === 'custom') {
+    const c = D.customTheme || {};
+    const custom = {
+      paper: c.paper || '#FFFDF8', surface: c.surface || '#FFFFFF', surface2: c.surface2 || '#F6F0E5',
+      ink: c.ink || '#342B25', muted: c.muted || '#74675E', accent: c.accent || '#A86D8C',
+      accent2: c.accent2 || '#6F7E52', t1: c.t1 || '#D6E4F0', t2: c.t2 || '#F1CEDA',
+      t3: c.t3 || '#E9D6A5', t4: c.t4 || '#CADDBD', t5: c.t5 || '#D7CCEB',
+    };
+    Object.entries({
+      '--paper': custom.paper, '--surface': custom.surface, '--surface2': custom.surface2,
+      '--ink': custom.ink, '--ink2': custom.ink, '--muted': custom.muted, '--edge': custom.ink,
+      '--hair': custom.surface2, '--accent': custom.accent, '--accent2': custom.accent2,
+      '--t1': custom.t1, '--t2': custom.t2, '--t3': custom.t3, '--t4': custom.t4, '--t5': custom.t5,
+      '--on': custom.ink,
+    }).forEach(([key, value]) => root.style.setProperty(key, value));
+  } else {
+    ['--paper','--surface','--surface2','--ink','--ink2','--muted','--edge','--hair','--accent','--accent2','--t1','--t2','--t3','--t4','--t5','--on'].forEach(key => root.style.removeProperty(key));
+  }
   root.classList.toggle('calm', Boolean(S.settings.calm));
   root.classList.toggle('plain', S.settings.decor === false);
   root.classList.toggle('hide-bal', Boolean(D.hideBal));
