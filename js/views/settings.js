@@ -3,7 +3,7 @@
 import { S, esc, icon, ACTIONS, BINDS, FORMS, rerender, today, toast, fail, applyTheme, THEMES, themeId, APP, CURRENCIES, openModal, closeModal, modalShell, confirmButton } from '../core.js';
 import { db, hasCloud } from '../data.js';
 import { saveSettings, download } from '../ui.js';
-import { items, dget, sortBy, addBtn, EXP_CATS, INC_CATS } from '../kinds.js';
+import { items, dget, sortBy, addBtn, EXP_CATS, INC_CATS, normalizeHexColor } from '../kinds.js';
 import { photoBytes, fmtBytes, makeZip, isPdf } from '../photos.js';
 import { habits, habitStreak } from '../hub.js';
 import { D, saveData, seg, hubHead } from './common.js';
@@ -40,6 +40,19 @@ const CURRENCY_PT = {
   CHF: 'Franco suíço', SEK: 'Coroa sueca', NOK: 'Coroa norueguesa',
   DKK: 'Coroa dinamarquesa',
 };
+const WEEKDAY_COLOR_SETTINGS = [
+  [0, 'Domingo', 'c5', '#8661C6'], [1, 'Segunda-feira', 'c1', '#3B74B5'],
+  [2, 'Terça-feira', 'c2', '#D0558D'], [3, 'Quarta-feira', 'c4', '#3E9468'],
+  [4, 'Quinta-feira', 'c3', '#B07E0A'], [5, 'Sexta-feira', 'c1', '#3B74B5'],
+  [6, 'Sábado', 'c2', '#D0558D'],
+];
+const themeToneColor = (tone, fallback) => {
+  const root = globalThis.document?.documentElement;
+  const value = root && typeof globalThis.getComputedStyle === 'function'
+    ? globalThis.getComputedStyle(root).getPropertyValue(`--${tone}`)
+    : '';
+  return normalizeHexColor(value) || fallback;
+};
 export function viewSettings() {
   const s = S.settings; const d = D(); const ts = Number(d.textSize ?? 1);
   const custom = d.customTheme || {};
@@ -73,6 +86,12 @@ export function viewSettings() {
           <button class="btn solid sm" type="submit">Aplicar cores</button>
         </form>
       </details>
+      <div class="week-header-colors"><h3>Cabeçalhos da semana</h3><p class="small muted">Escolha uma cor para cada dia no Planejamento Semanal.</p>
+        <div class="week-color-settings">${WEEKDAY_COLOR_SETTINGS.map(([day, label, tone, fallback]) => {
+          const color = normalizeHexColor(d.weekDayHeaderColors?.[day]) || themeToneColor(tone, fallback);
+          return `<label class="week-color-setting"><span>${label}</span><input type="color" value="${esc(color)}" data-bind="week-day-color" data-day="${day}" aria-label="Cor do cabeçalho de ${label}"></label>`;
+        }).join('')}</div>
+      </div>
       <div class="set-row"><span class="sr-t"><b>Tamanho do texto</b><small>Texto maior, mesma disposição</small></span><div class="tsizes" role="group" aria-label="Tamanho do texto">${[0, 1, 2, 3].map(i => `<button data-action="text-size" data-v="${i}" aria-pressed="${ts === i}" aria-label="Tamanho do texto ${i + 1}" style="font-size:${[.8, 1, 1.2, 1.4][i]}rem">A</button>`).join('')}</div></div>
       ${tog('calm', s.calm, 'Reduzir movimento', 'Sem animações, etiquetas flutuantes ou confetes', 'col')}
       ${tog('decor', s.decor !== false, 'Detalhes visuais', 'Brilhos, fotos inclinadas, escrita manual e confetes', 'col')}
@@ -106,6 +125,16 @@ BINDS['custom-color'] = (input, type) => {
   if (type !== 'change') return;
   const text = input.closest('.hex-wrap')?.querySelector('input[type="text"]');
   if (text) text.value = input.value.toUpperCase();
+};
+BINDS['week-day-color'] = async (input, type) => {
+  if (type !== 'change') return;
+  const day = Number(input.dataset.day);
+  const color = normalizeHexColor(input.value);
+  if (!Number.isInteger(day) || day < 0 || day > 6 || !color) {
+    toast('Selecione uma cor válida para o cabeçalho.', { error: true }); return;
+  }
+  await saveData({ weekDayHeaderColors: { ...(D().weekDayHeaderColors || {}), [day]: color } });
+  rerender();
 };
 FORMS['custom-theme'] = async (form) => {
   const keys = ['paper','surface','surface2','ink','muted','accent','accent2','t1','t2','t3','t4','t5'];

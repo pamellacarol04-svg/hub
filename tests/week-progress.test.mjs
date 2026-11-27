@@ -4,7 +4,7 @@ import test from 'node:test';
 globalThis.location = { hash: '#/plan?tab=week', pathname: '/', search: '' };
 const importDocument = globalThis.document;
 globalThis.document = { addEventListener() {} };
-const { S, addDays, today } = await import('../js/core.js');
+const { S, addDays, parseDay, today } = await import('../js/core.js');
 const { weekOf } = await import('../js/hub.js');
 const { VIEWS_VISION } = await import('../js/views/vision.js');
 if (importDocument === undefined) delete globalThis.document;
@@ -64,9 +64,15 @@ test('completed weekly tasks without a fixed-date flag stay on their original da
 
 test('weekly cards show circular progress and styled schedule entries', () => {
   const originalItems = S.items;
+  const originalSettings = S.settings;
   const originalWeekPage = S.ui.weekPage;
   const originalHash = globalThis.location.hash;
   const day = weekOf();
+  const weekday = parseDay(day).getDay();
+  S.settings = {
+    ...S.settings,
+    data: { ...(S.settings.data || {}), weekDayHeaderColors: { [weekday]: '#123ABC' } },
+  };
   S.items = [{
     id: 'week-block',
     kind: 'block',
@@ -80,11 +86,16 @@ test('weekly cards show circular progress and styled schedule entries', () => {
   try {
     const html = VIEWS_VISION.plan({ tab: 'week' });
     assert.match(html, /class="ring c[1-5]" role="img" aria-label="Progresso diário: 0%"/);
+    assert.match(html, /r="38\.63793" class="r-bg"/);
+    assert.match(html, /r="38\.63793" class="r-fg"/);
+    assert.match(html, /--week-header-color:#123ABC/);
+    assert.doesNotMatch(html, /week-day-color|data-bind="week-day-color"/);
     assert.match(html, /class="week-block-time">9:00 AM–9:30 AM<\/span>/);
     assert.match(html, /class="week-block-category">Pessoal<\/span>/);
     assert.match(html, /class="week-event"[^>]*>[\s\S]*Adicionar à agenda/);
   } finally {
     S.items = originalItems;
+    S.settings = originalSettings;
     S.ui.weekPage = originalWeekPage;
     globalThis.location.hash = originalHash;
   }

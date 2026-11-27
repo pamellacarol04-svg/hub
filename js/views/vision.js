@@ -3,7 +3,7 @@
 // roll forward), a weekly reset checklist, the 12-week year with an execution score, OKRs with key
 // results that add themselves up, and quarterly reviews that start with the quarter's numbers.
 import { S, esc, icon, ACTIONS, FORMS, BINDS, rerender, fail, toast, today, addDays, parseDay, DAYS, DAYS_LONG, MONTHS, fmtShort, fmtLong, daysBetween, plural, hhmm, moneyWhole, round2 } from '../core.js';
-import { items, byId, save, patch, dget, sortBy, addBtn, LIFE_AREAS, QUARTERS, PLAN_CATEGORIES, blockColor } from '../kinds.js';
+import { items, byId, save, patch, dget, sortBy, addBtn, LIFE_AREAS, QUARTERS, PLAN_CATEGORIES, blockColor, normalizeHexColor } from '../kinds.js';
 import { photosOf, PICK_HOOKS } from '../photos.js';
 import { ring } from '../ui.js';
 import { GROUPS } from './lightbox.js';
@@ -83,14 +83,15 @@ function tabWeek() {
     const x = parseDay(d); const l = dayTasks(d); const open = l.filter(task => task.status !== 'done'); const done = l.filter(task => task.status === 'done');
     const pending = open.length; const total = l.length; const pctDone = total ? Math.round(done.length / total * 100) : 0;
     const dayTone = ['c5', 'c1', 'c2', 'c4', 'c3', 'c1', 'c2'][x.getDay()];
+    const headerColor = normalizeHexColor(D().weekDayHeaderColors?.[x.getDay()]);
     const blocks = dayBlocks(d); const priorities = l.filter(task => dget(task, 'weekPriority'));
     const dailyTasks = l.filter(task => !dget(task, 'weekPriority'));
     const dailyDone = dailyTasks.filter(task => task.status === 'done').length;
-    return `<section class="wk-day ${d === t ? 'today' : ''} ${d < t ? 'past' : ''}" style="--week-tone:var(--${dayTone})">
+    return `<section class="wk-day ${d === t ? 'today' : ''} ${d < t ? 'past' : ''}" style="--week-tone:var(--${dayTone});--week-header-color:${headerColor || `var(--${dayTone})`}">
       <header class="week-day-head"><div><div class="week-day-heading"><b>${x.getDate()}</b><strong>${esc(DAYS_LONG[x.getDay()])}</strong></div><small class="week-day-date">${esc(fmtLong(d))}</small></div>${d === t ? '<span class="week-today">Hoje</span>' : ''}</header>
       <section class="week-day-section week-progress">
         <h3>Progresso diário</h3>
-        <div class="week-progress-main">${ring(pctDone / 100, { tone: dayTone, text: `${pctDone}%`, label: `Progresso diário: ${pctDone}%` })}<dl><div class="week-stat-done"><dt>Concluídas</dt><dd>${done.length}</dd></div><div class="week-stat-pending"><dt>Pendentes</dt><dd>${pending}</dd></div><div class="week-stat-total"><dt>Total</dt><dd>${total}</dd></div></dl></div>
+        <div class="week-progress-main">${ring(pctDone / 100, { tone: dayTone, radius: 38.63793, text: `${pctDone}%`, label: `Progresso diário: ${pctDone}%` })}<dl><div class="week-stat-done"><dt>Concluídas</dt><dd>${done.length}</dd></div><div class="week-stat-pending"><dt>Pendentes</dt><dd>${pending}</dd></div><div class="week-stat-total"><dt>Total</dt><dd>${total}</dd></div></dl></div>
       </section>
       <section class="week-day-section"><h3>Prioridades</h3>${priorities.length ? `<ul class="tasks week-priorities">${priorities.map(task => taskRow(task, { weekPriority: true })).join('')}</ul>` : '<p>Nenhuma prioridade.</p>'}</section>
       <section class="week-day-section week-tasks"><div class="week-section-title"><h3>Tarefas do dia</h3><small>${dailyDone}/${dailyTasks.length}</small></div>${dailyTasks.length ? `<ul class="tasks">${dailyTasks.map(task => taskRow(task, { weekPriority: true })).join('')}</ul>` : '<p>Nenhuma tarefa.</p>'}

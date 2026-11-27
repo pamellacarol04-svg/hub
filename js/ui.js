@@ -34,7 +34,7 @@ export const empty = (text, action = '') => `<div class="empty">${sparkle('sm')}
 export const pctOf = (a, b) => (b > 0 ? clamp(a / b, 0, 1) : 0);
 export const bar = (p, opts = {}) => `<div class="bar ${opts.tone || ''} ${opts.cls || ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}" ${opts.label ? `aria-label="${esc(opts.label)}"` : ''}><i style="width:${(p * 100).toFixed(1)}%"></i></div>`;
 export function ring(p, opts = {}) {
-  const r = 26, C = 2 * Math.PI * r;
+  const r = opts.radius ?? 26, C = 2 * Math.PI * r;
   return `<span class="ring ${opts.tone || ''}" role="img" aria-label="${esc(opts.label || Math.round(p * 100) + ' percent')}"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="${r}" class="r-bg"/><circle cx="32" cy="32" r="${r}" class="r-fg" stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${(C * (1 - p)).toFixed(2)}" transform="rotate(-90 32 32)"/></svg><b>${opts.text ?? Math.round(p * 100) + '%'}</b></span>`;
 }
 export const stat = (value, label, opts = {}) => `<div class="stat ${opts.tone || ''}"><b class="num">${value}</b><span>${esc(label)}</span>${opts.sub ? `<small>${opts.sub}</small>` : ''}</div>`;
