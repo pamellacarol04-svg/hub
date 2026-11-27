@@ -63,6 +63,9 @@ FORMS['week-task'] = async (form) => {
     rerender();
   } catch (e) { fail(e); }
 };
+const weekTaskDate = (task) => task.status === 'done'
+  ? (dget(task, 'fixedDate') ? task.day : dget(task, 'doneOn') || task.day)
+  : C.taskDay(task);
 ACTIONS['week-priority'] = async (button) => {
   const task = byId(button.dataset.id);
   if (!task || task.kind !== 'task') return;
@@ -73,7 +76,7 @@ ACTIONS['week-priority'] = async (button) => {
 };
 function tabWeek() {
   const wk = addDays(C.weekOf(), 4 * (S.ui.weekPage || 0)); const days = Array.from({ length: 4 }, (_, i) => addDays(wk, i)); const t = today(); const v = C.velocity(C.weekOf());
-  const dayTasks = (d) => sortBy(C.tasks().filter(x => (x.status === 'done' ? (dget(x, 'doneOn') || x.day) : C.taskDay(x)) === d), x => (x.status === 'done' ? 9 : 0) + (C.PRIO[x.cat] ?? 1));
+  const dayTasks = (d) => sortBy(C.tasks().filter(x => weekTaskDate(x) === d), x => (x.status === 'done' ? 9 : 0) + (C.PRIO[x.cat] ?? 1));
   const dayBlocks = (d) => sortBy(items('block').filter(x => x.day === d), x => dget(x, 'start') || '');
   return `<div class="wk-bar"><button class="icon-btn" data-action="week-page-nav" data-v="-1" aria-label="Quatro dias anteriores">${icon('back')}</button><b>${esc(fmtShort(wk))} – ${esc(fmtShort(addDays(wk, 3)))}</b><span class="hilite hl-blue">4 dias · Semana ${C.isoWeek(wk)}</span><button class="icon-btn" data-action="week-page-nav" data-v="1" aria-label="Próximos quatro dias">${icon('fwd')}</button>${S.ui.weekPage ? `<button class="btn sm ghost" data-action="week-page-nav" data-v="0">Esta semana</button>` : ''}<span class="right small muted">${v.done} de ${plural(v.total, 'tarefa')} concluídas · ${Math.round(v.pct * 100)}%</span></div>
   <p class="small muted evergreen">${icon('repeat')} Planejamento contínuo: esta página sempre acompanha sua semana atual. Tarefas abertas de dias anteriores avançam automaticamente.</p>
