@@ -63,9 +63,7 @@ FORMS['week-task'] = async (form) => {
     rerender();
   } catch (e) { fail(e); }
 };
-const weekTaskDate = (task) => task.status === 'done'
-  ? (dget(task, 'fixedDate') ? task.day : dget(task, 'doneOn') || task.day)
-  : C.taskDay(task);
+const weekTaskDate = (task) => task.status === 'done' ? task.day : C.taskDay(task);
 ACTIONS['week-priority'] = async (button) => {
   const task = byId(button.dataset.id);
   if (!task || task.kind !== 'task') return;
