@@ -73,10 +73,26 @@ function tabCourses() {
   const l = sortBy(items('course'), c => (C.syllabusPct(c) >= 1 ? 1 : 0) * 1e9 + (c.day ? daysBetween(today(), c.day) : 9e8));
   return `<div class="okr-bar">${addBtn('course', 'Curso', { cls: 'sm' })}<span class="small muted">${plural(l.filter(c => C.syllabusPct(c) < 1).length, 'curso')} em andamento</span><a class="btn sm ghost" href="./course-syllabus-template.json" download>Baixar modelo JSON</a></div>
   <div class="course-grid">${l.map(c => { const st = C.stepsOf(c); const p = C.syllabusPct(c); const notes = items('cnote').filter(n => n.parent_id === c.id).length; const decks = items('deck').filter(d => d.parent_id === c.id); const due = decks.reduce((a, d) => a + C.dueCards(d.id).length, 0); const color = normalizeHexColor(dget(c, 'color')); const progressColor = normalizeHexColor(dget(c, 'progressColor'));
-    return `<article class="course card lined" ${color ? `style="--course-color:${color}"` : ''}>${binder()}<header><span class="kick">${esc(dget(c, 'code') || 'Curso')}${dget(c, 'teacher') ? ` · ${esc(dget(c, 'teacher'))}` : ''}</span><h3><button class="link-plain" data-action="edit" data-id="${esc(c.id)}">${esc(c.title)}</button></h3></header>
+    return `<article class="course card lined" ${color ? `style="--course-color:${color}"` : ''}><a class="course-card-link" href="#/learn?tab=courses&amp;course=${encodeURIComponent(c.id)}" aria-label="Abrir curso: ${esc(c.title)}"></a>${binder()}<header><span class="kick">${esc(dget(c, 'code') || 'Curso')}${dget(c, 'teacher') ? ` · ${esc(dget(c, 'teacher'))}` : ''}</span><h3>${esc(c.title)}</h3><button class="btn sm ghost" data-action="edit" data-id="${esc(c.id)}">${icon('edit')} Editar curso</button></header>
       <div class="reset-row">${meter(p, 'c1', 'Grade curricular', progressColor)}<small>${Math.round(p * 100)}%</small></div><ol class="syllabus">${st.map((s, i) => `<li><button class="cb ${s.done ? 'on' : ''}" data-action="syl-step" data-id="${esc(c.id)}" data-i="${i}" aria-pressed="${s.done}">${icon('check')}<span>${esc(s.t)}</span></button>${syllabusTimerControls(c, s, i)}</li>`).join('')}</ol>
       <p class="small muted">${c.day ? `Termina em ${esc(fmtShort(c.day))} · ` : ''}<a href="#/learn?tab=notes">${plural(notes, 'nota', 'notas')}</a> · <a href="#/learn?tab=cards">${plural(due, 'cartão pendente', 'cartões pendentes')}</a>${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">Abrir</a>` : ''}</p><button class="btn sm ghost" data-action="syllabus-import-open" data-id="${esc(c.id)}">Importar grade</button></article>`; }).join('') || emptyNote('O que você está aprendendo agora?')}
   <input class="sr-only" type="file" id="course-syllabus-import-file" accept=".json,application/json" data-bind="syllabus-import-file" tabindex="-1"></div>`;
+}
+function coursePage(course) {
+  const steps = C.stepsOf(course);
+  const sessions = sortBy(items('study').filter(session => session.parent_id === course.id), session => `${session.day || ''} ${session.created_at || ''}`, -1);
+  const totalMinutes = sessions.reduce((total, session) => total + Math.max(0, Number(session.num) || 0), 0);
+  const progress = C.syllabusPct(course);
+  const sessionRows = sessions.length
+    ? `<ul class="rows">${sessions.map(session => `<li><span class="r-t"><button class="link-plain" data-action="edit" data-id="${esc(session.id)}"><b>${esc(session.title || 'Estudo livre')}</b></button><small>${esc(session.day ? fmtLong(session.day) : 'Data não informada')}</small></span><b class="num">${esc(studyTimeText(session.num))}</b></li>`).join('')}</ul>`
+    : emptyNote('Ainda não há sessões de estudo vinculadas a este curso.');
+  return `${hubHead(5, 'Página do curso', `${esc(course.title)} <em>em foco</em>`, [dget(course, 'code'), dget(course, 'teacher'), course.day ? `Termina em ${fmtLong(course.day)}` : ''].filter(Boolean).map(esc).join(' · '), `<button class="btn sm ghost" data-action="edit" data-id="${esc(course.id)}">${icon('edit')} Editar curso</button>`)}
+    ${folderTabs('learn', LTABS, 'courses')}
+    <div class="tab-body">
+      <div class="wk-bar"><a class="btn sm ghost" href="#/learn?tab=courses">${icon('back')} Todos os cursos</a></div>
+      <div class="tickets"><div class="ticket c1"><span class="kick">Sessões</span><b class="num">${sessions.length}</b></div><div class="ticket c4"><span class="kick">Tempo estudado</span><b class="num">${esc(studyTimeText(totalMinutes))}</b></div><div class="ticket c3"><span class="kick">Grade curricular</span><b class="num">${Math.round(progress * 100)}%</b></div></div>
+      ${twoCol(card(`Grade <em>curricular</em>`, `<div class="reset-row">${meter(progress, 'c1', 'Grade curricular', normalizeHexColor(dget(course, 'progressColor')))}<small>${Math.round(progress * 100)}%</small></div><ol class="syllabus">${steps.map((step, index) => `<li><button class="cb ${step.done ? 'on' : ''}" data-action="syl-step" data-id="${esc(course.id)}" data-i="${index}" aria-pressed="${step.done}">${icon('check')}<span>${esc(step.t)}</span></button>${syllabusTimerControls(course, step, index)}</li>`).join('') || '<li class="small muted">Nenhuma etapa cadastrada.</li>'}</ol><button class="btn sm ghost" data-action="syllabus-import-open" data-id="${esc(course.id)}">Importar grade</button>`, { cls: 'lined' }), card(`Sessões <em>de estudo</em>`, sessionRows, { cls: 'lined', link: addBtn('study', 'Registrar sessão', { cls: 'sm ghost', preset: { day: today(), parent_id: course.id } }) }))}
+    </div>`;
 }
 // Flashcards (Leitner boxes)
 ACTIONS['study'] = (b) => { S.ui.study = b.dataset.v; S.ui.flip = false; rerender(); };
@@ -282,6 +298,13 @@ function tabStudy() {
 }
 function viewLearn(r) {
   const tab = pickTab(LTABS, r.tab);
+  if (tab === 'courses' && r.params?.has('course')) {
+    const course = byId(r.params.get('course'));
+    if (!course || course.kind !== 'course') {
+      return `${hubHead(5, 'Cursos', 'Curso <em>não encontrado</em>', 'Este curso não está disponível ou foi removido.')}${folderTabs('learn', LTABS, 'courses')}<div class="tab-body"><a class="btn sm ghost" href="#/learn?tab=courses">${icon('back')} Todos os cursos</a></div>`;
+    }
+    return coursePage(course);
+  }
   return `${hubHead(5, 'Sempre Aprendendo', 'Aprendizado <em>Acadêmico</em>', 'Cursos com grade curricular para acompanhar, flashcards que voltam antes de você esquecer, notas Cornell, tempo de estudo e certificados conquistados.')}${folderTabs('learn', LTABS, tab)}<div class="tab-body">${{ courses: tabCourses, cards: tabCards, notes: tabNotes, certs: tabCerts, study: tabStudy }[tab]()}</div>`;
 }
 

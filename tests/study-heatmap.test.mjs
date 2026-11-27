@@ -169,6 +169,46 @@ test('syllabus lesson opens a prefilled time block in the agenda', () => {
   }
 });
 
+test('each course opens a page with all and only its linked study sessions', () => {
+  const originalItems = S.items;
+  const originalHash = globalThis.location.hash;
+  const course = { id: 'course-detail', kind: 'course', title: 'Cirurgia Geral', data: { steps: [] } };
+  const otherCourse = { id: 'course-other', kind: 'course', title: 'Anatomia', data: {} };
+  const sessions = Array.from({ length: 14 }, (_, index) => ({
+    id: `study-${index}`,
+    kind: 'study',
+    parent_id: course.id,
+    title: `Aula ${index + 1}`,
+    day: `2026-01-${String(index + 1).padStart(2, '0')}`,
+    num: 30,
+  }));
+  S.items = [
+    course,
+    otherCourse,
+    ...sessions,
+    { id: 'study-other-course', kind: 'study', parent_id: otherCourse.id, title: 'Sessão de anatomia', day: '2026-01-20', num: 45 },
+    { id: 'study-unlinked', kind: 'study', parent_id: null, title: 'Estudo livre', day: '2026-01-21', num: 20 },
+  ];
+
+  try {
+    globalThis.location.hash = '#/learn?tab=courses';
+    const listing = VIEWS_GROWTH.learn({ tab: 'courses', params: new URLSearchParams('tab=courses') });
+    assert.match(listing, /class="course-card-link" href="#\/learn\?tab=courses&amp;course=course-detail" aria-label="Abrir curso: Cirurgia Geral"/);
+
+    globalThis.location.hash = '#/learn?tab=courses&course=course-detail';
+    const detail = VIEWS_GROWTH.learn({ tab: 'courses', params: new URLSearchParams('tab=courses&course=course-detail') });
+    assert.match(detail, /Aula 1/);
+    assert.match(detail, /Aula 14/);
+    assert.match(detail, />14<\/b>/);
+    assert.match(detail, /data-kind="study"/);
+    assert.match(detail, /parent_id&quot;:&quot;course-detail/);
+    assert.doesNotMatch(detail, /Sessão de anatomia|Estudo livre/);
+  } finally {
+    S.items = originalItems;
+    globalThis.location.hash = originalHash;
+  }
+});
+
 test('heatmap legend color changes persist for the selected intensity', async () => {
   const originalSettings = S.settings;
   const originalSaveSettings = db.saveSettings;

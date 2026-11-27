@@ -4,7 +4,7 @@
 // top three, habits), the inbox, the numbers (money in vs out, task velocity, mood)
 // and, down the side, money this month, what's coming up, the month on one card, the month's vibe
 // photo and an evergreen summary of the day, week, quarter and year.
-import { S, $, esc, icon, sparkle, ACTIONS, FORMS, rerender, fail, toast, today, addDays, parseDay, DAYS_LONG, MONTHS_LONG, MONTHS, daysBetween, firstName, plural, moneyWhole, hhmm } from '../core.js';
+import { S, $, esc, icon, sparkle, ACTIONS, FORMS, hooks, rerender, fail, toast, today, addDays, parseDay, DAYS_LONG, MONTHS_LONG, MONTHS, daysBetween, firstName, plural, moneyWhole, hhmm } from '../core.js';
 import { items, byId, save, patch, remove, dget, sortBy, addBtn, PRIORITIES, LIFE_AREAS, EXP_CATS, blockColor } from '../kinds.js';
 import { photosOf, PICK_HOOKS, addPhotos, img } from '../photos.js';
 import { donut, lineChart, groupBars } from '../ui.js';
@@ -44,6 +44,92 @@ function moneyCard() {
   return card(`Dinheiro deste <em>mês</em>`, `<div class="mm-figs"><div><span class="label">Gasto</span><b class="mm-n">${amt(out)}</b><small class="muted">de ${amt(inn)} recebidos</small></div><div><span class="label">${left >= 0 ? 'Restante' : 'A mais'}</span><b class="mm-n">${amt(Math.abs(left))}</b></div></div>
     ${meter(inn > 0 ? Math.min(1, out / inn) : 0, 'c1', 'Valor gasto em relação às entradas')}
     ${last.length ? `<ul class="mm-last">${last.map(t => `<li>${icon('receipt')}<span>${esc(t.title)}${EXP_CATS[t.cat] && EXP_CATS[t.cat] !== t.title ? ` <small class="muted">${esc(EXP_CATS[t.cat])}</small>` : ''}</span><b class="num">${amt(t.amount)}</b></li>`).join('')}</ul>` : ''}`, { tone: 't1', kicker: MONTHS_LONG[parseDay(today()).getMonth()], cls: 'money-card', link: `<button class="btn sm" data-action="quick" data-v="txn">${icon('plus')} Gasto</button>` });
+}
+const CLOCK_TONES = { sky: 'var(--c1)', blush: 'var(--c2)', butter: 'var(--c3)', sage: 'var(--c4)', lilac: 'var(--c6)' };
+const clockMinutes = (value) => {
+  const match = String(value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+};
+const clockPoint = (minute, radius) => {
+  const angle = ((minute % 1440) / 1440) * Math.PI * 2 + Math.PI / 2;
+  return { x: 120 + Math.cos(angle) * radius, y: 120 + Math.sin(angle) * radius };
+};
+const clockArc = (start, end, radius) => {
+  const duration = Math.min(1440, end - start);
+  if (duration <= 0) return '';
+  if (duration >= 1440) return `M 120 ${120 - radius} A ${radius} ${radius} 0 1 1 120 ${120 + radius} A ${radius} ${radius} 0 1 1 120 ${120 - radius}`;
+  const a = clockPoint(start, radius); const b = clockPoint(end, radius);
+  return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${radius} ${radius} 0 ${duration > 720 ? 1 : 0} 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`;
+};
+const agendaClockEvents = () => meetingsOn(today()).flatMap(event => {
+  const start = clockMinutes(event.at);
+  if (start === null) return [];
+  const rawEnd = clockMinutes(event.to);
+  const end = rawEnd === null ? null : rawEnd < start ? rawEnd + 1440 : rawEnd;
+  return [{ ...event, start, end, color: event.color || CLOCK_TONES[event.tone] || 'var(--c1)' }];
+});
+const shortClockTitle = (title) => {
+  const text = String(title || 'Compromisso');
+  return text.length > 27 ? `${text.slice(0, 26).trimEnd()}…` : text;
+};
+const agendaClockMessage = (minute, events) => {
+  const active = events.find(event => event.end !== null && event.end > event.start && event.start <= minute && event.end > minute);
+  if (active) return `Em andamento · ${shortClockTitle(active.t)}`;
+  const next = events.find(event => event.start >= minute);
+  if (!next) return events.length ? 'Sem próximos horários' : meetingsOn(today()).length ? 'Compromisso sem horário' : 'Dia sem compromissos';
+  const remaining = next.start - minute;
+  const distance = remaining < 60 ? `${remaining} min` : `${Math.floor(remaining / 60)} h${remaining % 60 ? ` ${remaining % 60} min` : ''}`;
+  return `${shortClockTitle(next.t)} · em ${distance}`;
+};
+let agendaClockInterval = null;
+function updateAgendaClock() {
+  const clock = document.querySelector('[data-agenda-clock]');
+  if (!clock) { clearInterval(agendaClockInterval); agendaClockInterval = null; return; }
+  if (clock.dataset.day !== today()) { rerender(); return; }
+  const now = new Date();
+  const minute = now.getHours() * 60 + now.getMinutes();
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const timeNode = clock.querySelector('[data-clock-time]');
+  const messageNode = clock.querySelector('[data-clock-message]');
+  if (timeNode) timeNode.textContent = time;
+  if (messageNode) messageNode.textContent = agendaClockMessage(minute, agendaClockEvents());
+  clock.querySelectorAll('[data-clock-minute]').forEach(dot => {
+    const isPast = Number(dot.dataset.clockMinute) <= minute;
+    dot.classList.toggle('is-past', isPast);
+  });
+}
+hooks.after.push(() => {
+  clearInterval(agendaClockInterval);
+  agendaClockInterval = document.querySelector('[data-agenda-clock]') ? setInterval(updateAgendaClock, 30_000) : null;
+  if (agendaClockInterval) updateAgendaClock();
+});
+function agendaClock() {
+  const now = new Date(); const minute = now.getHours() * 60 + now.getMinutes();
+  const events = agendaClockEvents();
+  const arcs = events.filter(event => event.end !== null).map(event => {
+    const end = event.end;
+    const path = clockArc(event.start, end, 76);
+    return path ? `<path class="day-clock-event-arc" d="${path}" style="--clock-event-color:${event.color}"><title>${esc(event.t)} · ${esc(hhmm(event.at))}–${esc(hhmm(event.to))}</title></path>` : '';
+  }).join('');
+  const markers = events.map(event => {
+    const point = clockPoint(event.start, 93);
+    const color = event.color;
+    return `<g class="day-clock-event-marker" style="--clock-event-color:${color}"><title>${esc(event.t)} · ${esc(hhmm(event.at))}${event.to ? `–${esc(hhmm(event.to))}` : ''}</title><circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="5.5"></circle><circle class="day-clock-event-center" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="2"></circle></g>`;
+  }).join('');
+  const dots = Array.from({ length: 48 }, (_, index) => {
+    const dotMinute = index * 30; const point = clockPoint(dotMinute, 93); const isPast = dotMinute <= minute;
+    return `<circle class="day-clock-dot ${isPast ? 'is-past' : ''}" data-clock-minute="${dotMinute}" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="4.5"></circle>`;
+  }).join('');
+  return `<div class="day-clock" data-agenda-clock data-day="${today()}">
+    <svg class="day-clock-svg" viewBox="0 0 240 240" role="img" aria-label="Relógio de 24 horas com os compromissos de hoje">
+      <circle class="day-clock-track" cx="120" cy="120" r="76"></circle>${arcs}${dots}${markers}
+      <text class="day-clock-hour" x="120" y="61">12h</text><text class="day-clock-hour" x="179" y="123">18h</text>
+      <text class="day-clock-hour" x="120" y="187">00h</text><text class="day-clock-hour" x="61" y="123">06h</text>
+      <text class="day-clock-now-label" x="120" y="105">AGORA</text>
+      <text class="day-clock-time" data-clock-time x="120" y="128"></text>
+      <text class="day-clock-message" data-clock-message x="120" y="149">${esc(agendaClockMessage(minute, events))}</text>
+    </svg>
+  </div>`;
 }
 /** The evergreen summary: the date, week, quarter and the year so far. Nothing to set up, ever. */
 function summary() {
@@ -190,7 +276,7 @@ function viewHome(r, HUBS) {
     <div class="home-acts"><button class="btn sm solid" data-action="quick" data-v="note">${icon('inbox')} Capturar</button><button class="btn sm" data-action="quick" data-v="task">${icon('checkCircle')} Tarefa</button><button class="btn sm" data-action="quick" data-v="block">${icon('clock')} Reunião</button><button class="btn sm" data-action="quick" data-v="txn">${icon('wallet')} Dinheiro</button></div>
     <div class="home-grid">
       <div class="hg-main">${focus()}${plannerCards()}${inbox()}</div>
-      <aside class="hg-right">${moneyCard()}${nudgesCard(nudges)}${calWidget()}</aside>
+      <aside class="hg-right">${agendaClock()}${moneyCard()}${nudgesCard(nudges)}${calWidget()}</aside>
     </div>
     ${folders(HUBS)}
     <div class="home-grid low"><div class="hg-main">${metrics()}</div><aside class="hg-right">${summary()}</aside></div>`;
