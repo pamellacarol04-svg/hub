@@ -102,7 +102,7 @@ export function stackChart(labels, series, opts = {}) { const W = opts.w || W0;
 }
 /** A donut. data: [{ label, value, tone }]. The middle shows the total (or opts.center). */
 export function donut(data, opts = {}) {
-  const tot = data.reduce((a, d) => a + Math.max(0, d.value), 0); const R = 80, r = 52, C = 100; let a0 = -Math.PI / 2; const fmt = opts.fmt || (v => Math.round(v));
+  const tot = data.reduce((a, d) => a + Math.max(0, d.value), 0); const R = 90, r = 66, C = 100; let a0 = -Math.PI / 2; const fmt = opts.fmt || (v => Math.round(v));
   const arc = (a, b) => { const big = b - a > Math.PI ? 1 : 0; const p = (ang, rr) => `${(C + rr * Math.cos(ang)).toFixed(2)},${(C + rr * Math.sin(ang)).toFixed(2)}`; return `M${p(a, R)} A${R},${R} 0 ${big} 1 ${p(b, R)} L${p(b, r)} A${r},${r} 0 ${big} 0 ${p(a, r)} Z`; };
   const segs = tot ? data.filter(d => d.value > 0).map(d => { const span = (d.value / tot) * Math.PI * 2; const b = a0 + span - (data.length > 1 ? 0.025 : 0.0001); const path = span >= Math.PI * 2 - 0.001 ? `M${C},${C - R} A${R},${R} 0 1 1 ${C - 0.01},${C - R} L${C - 0.01},${C - r} A${r},${r} 0 1 0 ${C},${C - r} Z` : arc(a0, Math.max(a0 + 0.001, b)); a0 += span; return `<g class="mark" tabindex="0" data-tip="${esc(`${d.label}: ${fmt(d.value)} (${Math.round(d.value / tot * 100)}%)`)}"><path class="donut-seg ${d.tone || 'c1'}" d="${path}"/></g>`; }).join('') : `<circle cx="${C}" cy="${C}" r="${(R + r) / 2}" class="donut-empty" stroke-width="${R - r}"/>`;
   return `<figure class="chart donut"><div class="donut-wrap"><svg viewBox="0 0 200 200" role="img" aria-label="${esc(opts.label || 'Breakdown')}">${segs}</svg><div class="donut-mid"><b class="num">${opts.center ?? esc(fmt(tot))}</b><span>${esc(opts.sub || 'total')}</span></div></div>

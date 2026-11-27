@@ -1,7 +1,7 @@
 // Home: the front page, in the atelier style. The grand vision board in a pinstriped frame with the
 // year's word, a big greeting with what's on now and next, every hub as a coloured tile with the live
 // number that matters most there, the four planners as file folders, Today's focus (meetings, the
-// top three, habits), the inbox, the numbers (habit heat map, money in vs out, task velocity, mood)
+// top three, habits), the inbox, the numbers (money in vs out, task velocity, mood)
 // and, down the side, money this month, what's coming up, the month on one card, the month's vibe
 // photo and an evergreen summary of the day, week, quarter and year.
 import { S, $, esc, icon, sparkle, ACTIONS, FORMS, rerender, fail, toast, today, addDays, parseDay, DAYS_LONG, MONTHS_LONG, MONTHS, daysBetween, firstName, plural, moneyWhole, hhmm } from '../core.js';
@@ -114,20 +114,11 @@ export function inbox(opts = {}) {
 // ---------------------------------------------------------------------
 // The numbers
 // ---------------------------------------------------------------------
-export function heatmap(y = C.year()) {
-  const days = C.heatYear(y); const first = parseDay(days[0].day); const lead = (first.getDay() + 6) % 7;
-  const cells = [...Array(lead).fill(null), ...days];
-  const lv = (r) => (r == null ? 'f' : r === 0 ? 0 : r < .34 ? 1 : r < .67 ? 2 : r < 1 ? 3 : 4);
-  const months = MONTHS.map((m, i) => { const idx = lead + C.dayOfYear(`${y}-${String(i + 1).padStart(2, '0')}-01`) - 1; return `<span style="grid-column:${Math.floor(idx / 7) + 1}">${m}</span>`; }).join('');
-  return `<div class="heat-wrap"><div class="heat-months" aria-hidden="true">${months}</div><div class="heat-g" role="img" aria-label="Consistência dos hábitos em ${y}">${cells.map(c => (c ? `<i class="l${lv(c.rate)}" data-tip="${esc(`${c.day}: ${c.rate == null ? 'ainda por vir' : Math.round(c.rate * 100) + '% dos hábitos'}`)}"></i>` : '<i class="pad"></i>')).join('')}</div>
-    <div class="heat-key" aria-hidden="true">Menos<i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i>Mais</div></div>`;
-}
 function metrics() {
   const ms = C.monthsBack(6); const v = C.velocity(); const days = C.lastDays(30); const moods = days.map(C.moodOn);
   const logged = moods.filter(Boolean); const avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : null;
   return `<section class="metrics" aria-label="Os números"><header class="sec-head"><span class="label">Calculado com Tudo o que Você Registra</span><h2>Os <em>Números</em></h2></header>
     <div class="metric-grid">
-      ${card(`Mapa de <em>hábitos</em>`, heatmap(), { cls: 'm-heat', link: `<span class="small muted">${Math.round(C.habitRate() * 100)}% hoje</span>` })}
       ${card(`Pulso <em>financeiro</em>`, groupBars(ms.map(m => MONTHS[Number(m.slice(5)) - 1]), [{ name: 'Entradas', tone: 'c4', values: ms.map(C.incomeIn) }, { name: 'Saídas', tone: 'c2', values: ms.map(C.spentIn) }], { fmt: (x) => moneyWhole(x), label: 'Entradas e saídas nos últimos seis meses', h: 210 }), { cls: 'm-money', link: `<a class="small" href="#/money">Economizado este mês: ${amt(C.incomeIn() - C.spentIn())}</a>` })}
       ${card(`Velocidade das <em>tarefas</em>`, `${donut([{ label: 'Concluídas', value: v.done, tone: 'c1' }, { label: 'Pendentes', value: v.open, tone: 'c5' }], { center: `${Math.round(v.pct * 100)}%`, sub: 'esta semana', label: 'Tarefas concluídas nesta semana' })}<p class="small muted">${v.done} de ${plural(v.total, 'tarefa')} nesta semana, incluindo tarefas transferidas.</p>`, { cls: 'm-vel' })}
       ${card(`Tendência de <em>humor</em>`, `${lineChart(days.map(d => `${parseDay(d).getDate()}`), [{ name: 'Humor', tone: 'c2', values: moods }], { min: 1, max: 5, ticks: [1, 3, 5], fmt: (x) => FACE_WORDS[Math.round(x)] || '', label: 'Humor nos últimos 30 dias', h: 190 })}
@@ -192,14 +183,14 @@ function viewHome(r, HUBS) {
   const nudges = [
     letter ? `<a href="#/archive?tab=letters">A letter from past you is ready to open.</a>` : '',
     occ && occ.inDays <= 14 ? `<a href="#/social">${esc(occ.p.title)}’s ${occ.label.toLowerCase()} is ${occ.inDays === 0 ? 'today' : `in ${plural(occ.inDays, 'day')}`}.</a>` : '',
-    C.dueCards().length ? `<a href="#/learn?tab=cards">${plural(C.dueCards().length, 'flashcard')} due for review.</a>` : '',
+    C.dueCards().length ? `<a href="#/learn?tab=cards">${plural(C.dueCards().length, 'cartão', 'cartões')} para revisar.</a>` : '',
     nt && daysBetween(today(), nt.day) <= 30 && daysBetween(today(), nt.day) >= 0 ? `<a href="#/travel">${esc(nt.title)} in ${plural(daysBetween(today(), nt.day), 'day')}.</a>` : '',
   ].filter(Boolean);
   return `${visionBand()}${greetRow()}
     <div class="home-acts"><button class="btn sm solid" data-action="quick" data-v="note">${icon('inbox')} Capturar</button><button class="btn sm" data-action="quick" data-v="task">${icon('checkCircle')} Tarefa</button><button class="btn sm" data-action="quick" data-v="block">${icon('clock')} Reunião</button><button class="btn sm" data-action="quick" data-v="txn">${icon('wallet')} Dinheiro</button></div>
     <div class="home-grid">
       <div class="hg-main">${focus()}${plannerCards()}${inbox()}</div>
-      <aside class="hg-right">${moneyCard()}${nudgesCard(nudges)}${calWidget()}${vibeCard()}</aside>
+      <aside class="hg-right">${moneyCard()}${nudgesCard(nudges)}${calWidget()}</aside>
     </div>
     ${folders(HUBS)}
     <div class="home-grid low"><div class="hg-main">${metrics()}</div><aside class="hg-right">${summary()}</aside></div>`;

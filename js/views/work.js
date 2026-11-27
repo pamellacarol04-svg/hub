@@ -3,7 +3,7 @@
 // towards.  4 · Career & Business: a project board whose cards fill up as their linked tasks get
 // done, a networking CRM, meeting notes whose action items become tasks, a portfolio and résumé.
 import { S, esc, icon, ACTIONS, FORMS, BINDS, rerender, fail, toast, today, addDays, addMonths, parseDay, MONTHS, MONTHS_LONG, fmtShort, fmtLong, fmtDay, daysBetween, plural, moneyWhole, money, round2, monthKey, fmtMonth, relDay } from '../core.js';
-import { items, byId, save, patch, remove, dget, sortBy, addBtn, SUB_CYCLES, SUB_STATUS, ACCOUNT_KINDS, WISH_STATUS, PROJECT_STAGES, CONTACT_KINDS, FOLIO_KINDS, EXP_CATS, INC_CATS } from '../kinds.js';
+import { items, byId, save, patch, remove, dget, sortBy, addBtn, normalizeHexColor, RECURRENCE_CYCLES, SUB_CYCLES, SUB_STATUS, ACCOUNT_KINDS, WISH_STATUS, PROJECT_STAGES, CONTACT_KINDS, FOLIO_KINDS, EXP_CATS, INC_CATS, BEFORE, AFTER } from '../kinds.js';
 import { photosOf, img, PICK_HOOKS, addPhotos } from '../photos.js';
 import { donut, lineChart, groupBars, dragCards } from '../ui.js';
 import { GROUPS } from './lightbox.js';
@@ -14,9 +14,22 @@ import * as C from '../hub.js';
 // =====================================================================
 // 3 · Finance
 // =====================================================================
-const MTABS = [['flow', 'Entradas e saídas'], ['subs', 'Assinaturas'], ['debt', 'Pagamento de dívidas'], ['worth', 'Patrimônio líquido'], ['wish', 'Lista de desejos']];
+const MTABS = [['flow', 'Entradas e saídas'], ['subs', 'Assinaturas'], ['debt', 'Pagamento de dívidas'], ['worth', 'Patrimônio líquido'], ['wish', 'Lista de desejos'], ['cards', 'Cartões de crédito']];
 const TONES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
+BEFORE.txn = (row, old) => {
+  const frequency = row.data.recurrence;
+  if (!RECURRENCE_CYCLES[frequency] || frequency === 'none') {
+    row.data.recurrence = 'none';
+    delete row.data.nextOccurrence;
+    delete row.data.recurrenceIndex;
+  } else if (!old || frequency !== dget(old, 'recurrence') || row.day !== old.day) {
+    delete row.data.nextOccurrence;
+    row.data.recurrenceIndex = 1;
+  }
+};
+AFTER.txn = async () => { await C.processRecurringTransactions(); };
 ACTIONS['ym-nav'] = (b) => { S.ui.ym = b.dataset.v === '0' ? 0 : (S.ui.ym || 0) + Number(b.dataset.v); rerender(); };
+ACTIONS['card-ym-nav'] = (b) => { S.ui.cardYm = b.dataset.v === '0' ? 0 : (S.ui.cardYm || 0) + Number(b.dataset.v); rerender(); };
 const catName = (k) => EXP_CATS[k] || INC_CATS[k] || 'Other';
 function tabFlow() {
   const ym = monthKey(addMonths(today().slice(0, 8) + '01', S.ui.ym || 0)); const inc = C.incomeIn(ym), out = C.spentIn(ym); const saved = round2(inc - out);
@@ -60,13 +73,58 @@ BINDS['wish-saved'] = async (t, type) => { if (type !== 'change') return; const 
 ACTIONS['wish-bought'] = async (b) => { const x = byId(b.dataset.id); if (!x) return; try { await patch(x, { status: 'bought' }); await save({ kind: 'txn', title: x.title, amount: Number(x.amount) || 0, status: 'out', cat: 'shopping', day: today() }); toast('Compra registrada nos seus gastos.'); rerender(); } catch (e) { fail(e); } };
 function tabWish() {
   const l = sortBy(items('wish'), w => (w.status === 'bought' ? 1 : 0) * 1e9 - C.pctOf(C.wishSaved(w), Number(w.amount) || 1) * 1e6);
-  return `<div class="wish-grid">${l.map(w => { const p = photosOf(w.id)[0]; const pc = C.pctOf(C.wishSaved(w), Number(w.amount) || 0); return `<article class="wish ${w.status === 'bought' ? 'bought' : ''}">${pin()}<div class="wish-ph">${p ? img(p, { ratio: false, alt: '' }) : icon('gift')}</div><h3><button class="link-plain" data-action="edit" data-id="${esc(w.id)}">${esc(w.title)}</button></h3>
+  return `<div class="wish-grid">${l.map(w => {
+    const p = photosOf(w.id)[0];
+    const photoRatio = p && Number.isFinite(Number(p.w)) && Number(p.w) > 0 && Number.isFinite(Number(p.h)) && Number(p.h) > 0
+      ? `style="aspect-ratio:${Number(p.w)} / ${Number(p.h)}"` : '';
+    const pc = C.pctOf(C.wishSaved(w), Number(w.amount) || 0);
+    return `<article class="wish ${w.status === 'bought' ? 'bought' : ''}">${pin()}<div class="wish-ph" ${photoRatio}>${p ? img(p, { ratio: false, alt: '' }) : icon('gift')}</div><h3><button class="link-plain" data-action="edit" data-id="${esc(w.id)}">${esc(w.title)}</button></h3>
     <p class="small"><b>${amt(w.amount || 0)}</b> · ${esc(WISH_STATUS[w.status || 'want'])}${w.url ? ` · <a href="${esc(w.url)}" target="_blank" rel="noopener">Link</a>` : ''}</p>${w.status !== 'bought' ? `${meter(pc, 'c4', 'Economizado')}<label class="inline small">Economizado <input class="input sm num" type="number" min="0" value="${C.wishSaved(w)}" data-bind="wish-saved" data-id="${esc(w.id)}" aria-label="Economizado para ${esc(w.title)}"></label>${pc >= 1 ? `<button class="btn sm solid" data-action="wish-bought" data-id="${esc(w.id)}">${icon('bag')} Comprei</button>` : ''}` : ''}</article>`; }).join('')}
     <button class="wish add" data-action="add" data-kind="wish" data-preset='{"status":"want"}'>${icon('plus')}<b>Adicionar desejo</b></button></div>`;
 }
+function tabCards() {
+  const cycleOffset = Number(S.ui.cardYm) || 0;
+  const day = today();
+  const cards = sortBy(items('creditcard'), c => c.title || '');
+  const cycleLabel = cycleOffset === 0 ? 'Próximas faturas' : cycleOffset === -1 ? 'Ciclo anterior' : cycleOffset === 1 ? 'Ciclo seguinte' : `${Math.abs(cycleOffset)} ciclos ${cycleOffset < 0 ? 'antes' : 'depois'}`;
+  const monthNav = `<div class="wk-bar"><button class="icon-btn" data-action="card-ym-nav" data-v="-1" aria-label="Ciclo anterior">${icon('back')}</button><b>${esc(cycleLabel)}</b><button class="icon-btn" data-action="card-ym-nav" data-v="1" aria-label="Ciclo seguinte">${icon('fwd')}</button>${cycleOffset ? `<button class="btn sm ghost" data-action="card-ym-nav" data-v="0">Próximas faturas</button>` : ''}<span class="right inline">${addBtn('creditcard', 'Adicionar cartão', { cls: 'sm' })}</span></div>`;
+  if (!cards.length) return `${monthNav}${emptyNote('Cadastre seu primeiro cartão para acompanhar as faturas e os gastos parcelados.')}`;
+  const statements = cards.map(c => {
+    const currentYm = C.cardInvoiceMonth(day, dget(c, 'closingDay')) || monthKey();
+    const ym = addMonths(`${currentYm}-01`, cycleOffset).slice(0, 7);
+    const lines = C.cardInvoiceLines(c, ym);
+    const total = lines.reduce((sum, t) => sum + t.installmentAmount, 0);
+    return { card: c, ym, lines, total };
+  });
+  const sections = statements.map(({ card: c, ym, lines, total }) => {
+    const details = [dget(c, 'bank'), dget(c, 'brand'), dget(c, 'last4') ? `•••• ${dget(c, 'last4')}` : null].filter(Boolean).map(esc).join(' · ');
+    const closing = Number(dget(c, 'closingDay')) || null;
+    const due = Number(dget(c, 'dueDay')) || null;
+    const limit = Math.max(0, Number(dget(c, 'limit')) || 0);
+    const usedPercent = limit ? Math.max(0, total / limit * 100) : null;
+    const barPercent = Math.min(100, usedPercent || 0);
+    const last4 = dget(c, 'last4');
+    const cardColor = normalizeHexColor(dget(c, 'color')) || '#DCCEF3';
+    const rows = lines.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Descrição</th><th>Data</th><th>Categoria</th><th>Parcela</th><th>Valor na fatura</th></tr></thead><tbody>${lines.map(t => `<tr><td><button class="link-plain" data-action="edit" data-id="${esc(t.id)}">${esc(t.title || 'Sem descrição')}</button></td><td>${esc(fmtShort(t.day))}</td><td>${esc(catName(t.cat))}</td><td>${t.installmentCount > 1 ? `${t.installmentNumber}/${t.installmentCount}` : 'À vista'}</td><td class="num">${esc(money(t.installmentAmount))}</td></tr>`).join('')}</tbody></table></div>` : emptyNote('Nenhum gasto neste cartão para esta fatura.');
+    const addExpense = addBtn('txn', 'Registrar gasto', { cls: 'sm ghost', preset: { status: 'out', day: today(), cat: 'other', data: { card: c.id, installments: 1 } } });
+    const edit = `<button class="btn sm ghost" data-action="edit" data-id="${esc(c.id)}">${icon('edit')} Editar cartão</button>`;
+    const maskedNumber = last4 ? `•••• ${esc(last4)}` : '••••';
+    const progress = `<div class="cc-progress" role="progressbar" aria-label="Limite usado nesta fatura" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${barPercent}"><i style="width:${barPercent}%"></i></div>`;
+    const panel = `<div class="credit-card-panel" style="--cc-color:${esc(cardColor)}"><div class="credit-card-panel-head"><h2>CARTÃO FINANCEIRO <small>(CARTÃO DE CRÉDITO)</small></h2><span class="inline">${edit}${addExpense}</span></div>
+      <div class="cc-stack" aria-label="${esc(c.title || 'Cartão')}">
+        <div class="cc-face cc-front"><div class="cc-top"><b>${esc(c.title || '')}</b><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 11a13 13 0 0 1 0 18M16 7a19 19 0 0 1 0 26M24 3a25 25 0 0 1 0 34" /></svg></div><i class="cc-chip" aria-hidden="true"></i><b class="cc-number">${maskedNumber}</b></div>
+      </div>
+      <div class="cc-stats"><div><span>Fatura atual</span><b class="num">${esc(money(total))}</b></div><div class="cc-used"><span>Limite utilizado</span><b class="num">${usedPercent == null ? '—' : `${Math.round(usedPercent)}%`}</b></div></div>${progress}
+      <p class="cc-hint small muted">${limit ? 'Percentual calculado sobre os gastos registrados nesta fatura.' : 'Informe o limite total para calcular o percentual utilizado.'}</p>
+      <div class="card-invoice-meta small muted">${details}${details ? ' · ' : ''}Fatura de ${esc(fmtMonth(ym))} · fecha dia ${closing || '—'} · vencimento ${esc(fmtShort(C.cardInvoiceDueDate(c, ym)))} · limite ${limit ? esc(money(limit)) : '—'}</div></div>`;
+    return card('', `${panel}${rows}`, { cls: 'lined card-invoice' });
+  }).join('');
+  const invoiceTotal = statements.reduce((sum, statement) => sum + statement.total, 0);
+  return `${monthNav}<div class="tickets"><div class="ticket c1"><span class="kick">Cartões cadastrados</span><b class="num">${cards.length}</b></div><div class="ticket c2"><span class="kick">Total das faturas exibidas</span><b class="num">${esc(money(invoiceTotal))}</b></div></div><div class="credit-card-grid">${sections}</div>`;
+}
 function viewMoney(r) {
   const tab = pickTab(MTABS, r.tab);
-  return `${hubHead(3, 'Cada Dinheiro Tem Uma Finalidade', 'Dinheiro <em>Importa</em>', 'O que entra, o que sai, o que você deve, o que possui e o que está economizando. Tudo se soma automaticamente.', `<button class="btn sm solid" data-action="quick" data-v="txn">${icon('plus')} Registrar dinheiro</button>`)}${folderTabs('money', MTABS, tab)}<div class="tab-body">${{ flow: tabFlow, subs: tabSubs, debt: tabDebt, worth: tabWorth, wish: tabWish }[tab]()}</div>`;
+  return `${hubHead(3, 'Cada Dinheiro Tem Uma Finalidade', 'Dinheiro <em>Importa</em>', 'O que entra, o que sai, o que você deve, o que possui e o que está economizando. Tudo se soma automaticamente.', `<button class="btn sm solid" data-action="quick" data-v="txn">${icon('plus')} Registrar dinheiro</button>`)}${folderTabs('money', MTABS, tab)}<div class="tab-body">${{ flow: tabFlow, subs: tabSubs, debt: tabDebt, worth: tabWorth, wish: tabWish, cards: tabCards }[tab]()}</div>`;
 }
 
 // =====================================================================

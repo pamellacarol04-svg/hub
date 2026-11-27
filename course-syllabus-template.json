@@ -1,0 +1,11 @@
+{
+  "format": "hub-course-syllabus-v1",
+  "steps": [],
+  "_instructions": "Copie os itens de _example.steps para steps e substitua pelos nomes das aulas ou módulos. A importação acrescenta as etapas ao curso selecionado e preserva as etapas e o progresso existentes.",
+  "_example": {
+    "steps": [
+      "Módulo 1: Fundamentos",
+      "Aula 1: Introdução ao tema"
+    ]
+  }
+}

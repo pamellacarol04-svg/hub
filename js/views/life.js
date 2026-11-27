@@ -17,16 +17,35 @@ import * as C from '../hub.js';
 const WTABS = [['mood', 'Humor'], ['triggers', 'Gatilhos'], ['therapy', 'Notas de terapia'], ['journal', 'Diário e gratidão']];
 export const PROMPTS = ['O que faria hoje parecer um bom dia, honestamente?', 'O que estou carregando que não é meu para carregar?', 'Quando me senti mais eu mesmo nesta semana?', 'Qual pequena coisa posso perdoar em mim?', 'Do que meu corpo precisa neste momento?', 'Qual pensamento continua voltando, e ele é verdadeiro?', 'Que limite faria a próxima semana ficar mais leve?', 'Quem me fez sentir seguro recentemente, e como?', 'Do que tenho orgulho que ninguém viu?', 'Se minha ansiedade pudesse falar, o que pediria?', 'O que eu diria a um amigo na minha situação?', 'O que fiz hoje que meu eu do futuro agradecerá?'];
 export const promptOf = (d = today()) => PROMPTS[hash(d) % PROMPTS.length];
-ACTIONS['feel'] = async (b) => { const d = today(); const all = { ...(D().feelings || {}) }; const s = new Set(all[d] || []); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); all[d] = [...s]; await saveData({ feelings: all }); rerender(); };
-FORMS['mood-note'] = async (f) => { await saveData({ moodNote: { ...(D().moodNote || {}), [today()]: f.elements.note.value.trim().slice(0, 1000) } }); toast('Salvo.'); rerender(); };
+const validMindDay = (day) => {
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today()) return false;
+  const parsed = parseDay(day);
+  return parsed.getFullYear() === Number(day.slice(0, 4)) && parsed.getMonth() + 1 === Number(day.slice(5, 7)) && parsed.getDate() === Number(day.slice(8, 10));
+};
+const mindRecordDay = () => validMindDay(S.ui.mindDay) ? S.ui.mindDay : today();
+const mindDayPicker = (day) => `<label class="field mind-day-field"><span>Data do registro</span><input class="input" type="date" name="mind-day" value="${esc(day)}" max="${today()}" data-bind="mind-record-day"></label>`;
+BINDS['mind-record-day'] = (input, type) => {
+  if (type !== 'change') return;
+  if (!validMindDay(input.value)) { toast('Escolha uma data válida até hoje.', { error: true }); input.value = mindRecordDay(); return; }
+  S.ui.mindDay = input.value;
+  rerender();
+};
+ACTIONS['feel'] = async (b) => { const d = validMindDay(b.dataset.day) ? b.dataset.day : mindRecordDay(); const all = { ...(D().feelings || {}) }; const s = new Set(all[d] || []); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); all[d] = [...s]; await saveData({ feelings: all }); rerender(); };
+FORMS['mood-note'] = async (f) => {
+  const day = f.elements.day.value;
+  if (!validMindDay(day)) { toast('Escolha uma data válida até hoje.', { error: true }); return; }
+  await saveData({ moodNote: { ...(D().moodNote || {}), [day]: f.elements.note.value.trim().slice(0, 1000) } });
+  toast('Salvo.'); rerender();
+};
 function tabMood() {
-  const t = today(); const m = C.moodOn(t); const fs = new Set(C.feelingsOn(t)); const days = C.lastDays(30); const counts = {};
+  const t = mindRecordDay(); const m = C.moodOn(t); const fs = new Set(C.feelingsOn(t)); const days = C.lastDays(30); const counts = {};
   for (const d of days) for (const f of C.feelingsOn(d)) counts[f] = (counts[f] || 0) + 1;
   const ms = new Date(parseDay(t).getFullYear(), parseDay(t).getMonth(), 1); const lead = (ms.getDay() + 6) % 7; const dim = new Date(ms.getFullYear(), ms.getMonth() + 1, 0).getDate();
-  return `${twoCol(card(`Como você está, <em>de verdade?</em>`, `${faces('mood-set', m)}<p class="small muted center">${m ? `Hoje você se sente ${FACE_WORDS[m].toLowerCase()}.` : 'Toque em uma expressão. Não há resposta errada.'}</p>
-    <h3>Nomeie o sentimento</h3><div class="chips feel-chips">${C.FEELINGS.map(f => `<button class="chip" data-action="feel" data-v="${esc(f)}" aria-pressed="${fs.has(f)}">${esc(f)}</button>`).join('')}</div>
-    <form data-form="mood-note" class="mood-note"><label class="sr-only" for="mn">Uma nota sobre hoje</label><textarea class="input" id="mn" name="note" rows="2" placeholder="Há algo por trás disso?">${esc(C.moodNote(t))}</textarea><button class="btn sm solid">Salvar</button></form>`, { cls: 'lined', pin: true }),
-    card(`${esc(MONTHS_LONG[ms.getMonth()])} <em>em emoções</em>`, `<div class="mood-cal" role="img" aria-label="Humor em cada dia deste mês">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(x => `<b>${x}</b>`).join('')}${Array(lead).fill('<i></i>').join('')}${Array.from({ length: dim }, (_, i) => { const d = `${t.slice(0, 8)}${String(i + 1).padStart(2, '0')}`; const v = C.moodOn(d); return `<i class="md m${v || 0} ${d === t ? 'today' : ''}" data-tip="${esc(`${fmtShort(d)}: ${v ? FACE_WORDS[v] : 'não registrado'}`)}">${i + 1}</i>`; }).join('')}</div>
+  const status = m ? `${t === today() ? 'Hoje' : 'Nesse dia'} você se sentiu ${FACE_WORDS[m].toLowerCase()}.` : (t === today() ? 'Toque em uma expressão. Não há resposta errada.' : 'Nenhum humor registrado nesta data.');
+  return `${twoCol(card(`Como você está, <em>de verdade?</em>`, `${mindDayPicker(t)}${faces('mood-set', m, `data-day="${t}"`)}<p class="small muted center">${status}</p>
+    <h3>Nomeie o sentimento</h3><div class="chips feel-chips">${C.FEELINGS.map(f => `<button class="chip" data-action="feel" data-day="${t}" data-v="${esc(f)}" aria-pressed="${fs.has(f)}">${esc(f)}</button>`).join('')}</div>
+    <form data-form="mood-note" class="mood-note"><input type="hidden" name="day" value="${esc(t)}"><label class="sr-only" for="mn">Uma nota sobre esta data</label><textarea class="input" id="mn" name="note" rows="2" placeholder="Há algo por trás disso?">${esc(C.moodNote(t))}</textarea><button class="btn sm solid">Salvar</button></form>`, { cls: 'lined', pin: true }),
+    card(`${esc(MONTHS_LONG[ms.getMonth()])} ${ms.getFullYear()} <em>em emoções</em>`, `<div class="mood-cal" role="img" aria-label="Humor em cada dia do mês selecionado">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(x => `<b>${x}</b>`).join('')}${Array(lead).fill('<i></i>').join('')}${Array.from({ length: dim }, (_, i) => { const d = `${t.slice(0, 8)}${String(i + 1).padStart(2, '0')}`; const v = C.moodOn(d); return `<i class="md m${v || 0} ${d === today() ? 'today' : ''} ${d === t ? 'selected' : ''}" data-tip="${esc(`${fmtShort(d)}: ${v ? FACE_WORDS[v] : 'não registrado'}`)}">${i + 1}</i>`; }).join('')}</div>
       <div class="feel-top">${Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([f, n]) => label(`${f} ×${n}`, 'blue')).join('') || '<small class="muted">Os sentimentos mais frequentes aparecem aqui.</small>'}</div>`))}
   ${card(`Trinta <em>dias</em>`, lineChart(days.map(d => `${parseDay(d).getDate()}`), [{ name: 'Humor', tone: 'c2', values: days.map(C.moodOn) }], { min: 1, max: 5, ticks: [1, 3, 5], fmt: (x) => FACE_WORDS[Math.round(x)] || '', label: 'Humor nos últimos 30 dias', h: 200, w: 1000 }))}`;
 }
@@ -46,13 +65,28 @@ function tabTherapy() {
   <div class="meet-list">${l.map(x => { const hw = dget(x, 'homework') || []; const hd = new Set(dget(x, 'hwDone') || []); return `<article class="meet card lined">${pin()}<header><span class="kick">${esc(fmtLong(x.day))}${dget(x, 'who') ? ` · ${esc(dget(x, 'who'))}` : ''}</span><h3><button class="link-plain" data-action="edit" data-id="${esc(x.id)}">${esc(x.title)}</button></h3></header>${x.body ? `<p class="meet-notes">${esc(x.body)}</p>` : ''}
     ${(dget(x, 'takeaways') || []).length ? `<h4>Aprendizados</h4><ul class="take">${dget(x, 'takeaways').map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}${hw.length ? `<h4>Para praticar</h4><ul class="checks">${hw.map((h, i) => `<li><button class="cb ${hd.has(i) ? 'on' : ''}" data-action="hw-tick" data-id="${esc(x.id)}" data-i="${i}" aria-pressed="${hd.has(i)}">${icon('check')}<span>${esc(h)}</span></button></li>`).join('')}</ul>` : ''}</article>`; }).join('') || emptyNote('Anote cada sessão para que os aprendizados não se percam.')}</div>`;
 }
-FORMS['journal-write'] = async (f) => { const t = f.elements.body.value.trim(); if (!t) { toast('Escreva pelo menos uma linha.', { error: true }); return; } try { await save({ kind: 'journal', cat: 'prompt', title: f.elements.prompt.value, day: today(), body: t }); f.reset(); await sparkleWin('Salvo no seu diário.'); rerender(); } catch (e) { fail(e); } };
-FORMS['grat-write'] = async (f) => { const three = ['g1', 'g2', 'g3'].map(n => f.elements[n].value.trim()).filter(Boolean); if (!three.length) { toast('Escreva pelo menos uma coisa.', { error: true }); return; } try { const ex = items('journal').find(j => j.cat === 'gratitude' && j.day === today()); if (ex) await patch(ex, { body: three.join('\n'), data: { three } }); else await save({ kind: 'journal', cat: 'gratitude', title: 'Três coisas boas', day: today(), body: three.join('\n'), data: { three } }); await sparkleWin('Gratidão registrada.'); rerender(); } catch (e) { fail(e); } };
+FORMS['journal-write'] = async (f) => {
+  const t = f.elements.body.value.trim(); const day = f.elements.day.value;
+  if (!t) { toast('Escreva pelo menos uma linha.', { error: true }); return; }
+  if (!validMindDay(day)) { toast('Escolha uma data válida até hoje.', { error: true }); return; }
+  try { await save({ kind: 'journal', cat: 'prompt', title: f.elements.prompt.value, day, body: t }); f.reset(); await sparkleWin('Salvo no seu diário.'); rerender(); } catch (e) { fail(e); }
+};
+FORMS['grat-write'] = async (f) => {
+  const three = ['g1', 'g2', 'g3'].map(n => f.elements[n].value.trim()).filter(Boolean); const day = f.elements.day.value;
+  if (!three.length) { toast('Escreva pelo menos uma coisa.', { error: true }); return; }
+  if (!validMindDay(day)) { toast('Escolha uma data válida até hoje.', { error: true }); return; }
+  try {
+    const ex = items('journal').find(j => j.cat === 'gratitude' && j.day === day);
+    if (ex) await patch(ex, { body: three.join('\n'), data: { three } });
+    else await save({ kind: 'journal', cat: 'gratitude', title: 'Três coisas boas', day, body: three.join('\n'), data: { three } });
+    await sparkleWin('Gratidão registrada.'); rerender();
+  } catch (e) { fail(e); }
+};
 function tabJournal() {
-  const p = promptOf(); const g = items('journal').find(j => j.cat === 'gratitude' && j.day === today()); const gt = dget(g, 'three') || []; const l = sortBy(items('journal'), j => (j.day || '') + j.created_at, -1);
-  const streak = (() => { let n = 0; let d = g ? today() : addDays(today(), -1); while (items('journal').some(j => j.cat === 'gratitude' && j.day === d) && n < 999) { n++; d = addDays(d, -1); } return n; })();
-  return `${twoCol(card(`Pergunta de <em>hoje</em>`, `<p class="prompt">${esc(p)}</p><form data-form="journal-write"><input type="hidden" name="prompt" value="${esc(p)}"><label class="sr-only" for="jw">Sua resposta</label><textarea class="input" id="jw" name="body" rows="5" placeholder="Comece por qualquer ponto."></textarea><button class="btn solid sm">Salvar no diário</button></form>`, { cls: 'lined', clip: true }),
-    card(`Três coisas <em>boas</em>`, `<form data-form="grat-write" class="grat">${[0, 1, 2].map(i => `<label class="g-line"><span>${i + 1}.</span><input class="input" name="g${i + 1}" maxlength="200" value="${esc(gt[i] || '')}" placeholder="${['Algo pequeno', 'Alguém gentil', 'Algo que você fez bem'][i]}"></label>`).join('')}<button class="btn solid sm">${g ? 'Atualizar' : 'Salvar'}</button></form>${streak ? `<p class="small">${icon('fire')} ${plural(streak, 'dia')} de gratidão seguidos.</p>` : ''}`, { cls: 'grat-card', tape: 'butter' }))}
+  const day = mindRecordDay(); const p = promptOf(day); const g = items('journal').find(j => j.cat === 'gratitude' && j.day === day); const gt = dget(g, 'three') || []; const l = sortBy(items('journal'), j => (j.day || '') + j.created_at, -1);
+  const streak = (() => { let n = 0; let d = g ? day : addDays(day, -1); while (items('journal').some(j => j.cat === 'gratitude' && j.day === d) && n < 999) { n++; d = addDays(d, -1); } return n; })();
+  return `${mindDayPicker(day)}${twoCol(card(`Pergunta para <em>${day === today() ? 'hoje' : esc(fmtLong(day))}</em>`, `<p class="prompt">${esc(p)}</p><form data-form="journal-write"><input type="hidden" name="prompt" value="${esc(p)}"><input type="hidden" name="day" value="${esc(day)}"><label class="sr-only" for="jw">Sua resposta</label><textarea class="input" id="jw" name="body" rows="5" placeholder="Comece por qualquer ponto."></textarea><button class="btn solid sm">Salvar no diário</button></form>`, { cls: 'lined', clip: true }),
+    card(`Três coisas <em>boas</em>`, `<form data-form="grat-write" class="grat"><input type="hidden" name="day" value="${esc(day)}">${[0, 1, 2].map(i => `<label class="g-line"><span>${i + 1}.</span><input class="input" name="g${i + 1}" maxlength="200" value="${esc(gt[i] || '')}" placeholder="${['Algo pequeno', 'Alguém gentil', 'Algo que você fez bem'][i]}"></label>`).join('')}<button class="btn solid sm">${g ? 'Atualizar' : 'Salvar'}</button></form>${streak ? `<p class="small">${icon('fire')} ${plural(streak, 'dia')} de gratidão seguidos.</p>` : ''}`, { cls: 'grat-card', tape: 'butter' }))}
   ${card(`O <em>diário</em>`, l.length ? `<ul class="journal-l">${l.slice(0, 20).map(j => `<li><span class="kick">${esc(fmtLong(j.day))} · ${esc(JOURNAL_KINDS[j.cat] || '')}</span><button class="link-plain" data-action="edit" data-id="${esc(j.id)}"><b>${esc(j.title || 'Registro')}</b></button><p class="small">${esc(String(j.body || '').slice(0, 220))}${String(j.body || '').length > 220 ? '…' : ''}</p></li>`).join('')}</ul>` : emptyNote('Seu primeiro registro está esperando.'), { link: addBtn('journal', 'Escrita livre', { cls: 'sm ghost', preset: { cat: 'free', day: today() } }), cls: 'lined' })}`;
 }
 function viewMind(r) {
@@ -75,7 +109,7 @@ function tabRecipes() {
 BINDS['plan-set'] = async (t, type) => { if (type !== 'change') return; const wk = t.dataset.wk; const all = { ...(D().mealPlan || {}) }; all[wk] = { ...(all[wk] || {}), [t.dataset.k]: t.value || null }; await saveData({ mealPlan: all }); rerender(); };
 function tabPlan() {
   const wk = addDays(C.weekOf(), 7 * (S.ui.wk || 0)); const plan = C.mealPlan(wk); const rs = C.recipes();
-  return `<div class="wk-bar"><button class="icon-btn" data-action="wk-nav" data-v="-1" aria-label="Semana anterior">${icon('back')}</button><b>Semana de ${esc(fmtShort(wk))}</b><button class="icon-btn" data-action="wk-nav" data-v="1" aria-label="Próxima semana">${icon('fwd')}</button>${S.ui.wk ? `<button class="btn sm ghost" data-action="wk-nav" data-v="0">Esta semana</button>` : ''}<a class="btn sm right" href="#/kitchen?tab=grocery">${icon('cart')} Lista de compras (${C.groceryList(wk).filter(g => !g.done).length})</a></div>
+  return `<div class="wk-bar"><button class="icon-btn" data-action="wk-nav" data-v="-1" aria-label="Semana anterior">${icon('back')}</button><b>Semana de ${esc(fmtShort(wk))}</b><button class="icon-btn" data-action="wk-nav" data-v="1" aria-label="Próxima semana">${icon('fwd')}</button>${S.ui.wk ? `<button class="btn sm ghost" data-action="wk-nav" data-v="0">Esta semana</button>` : ''}<a class="btn sm right" href="#/home">${icon('cart')} Lista de compras (${C.groceryList(wk).filter(g => !g.done).length})</a></div>
   <div class="meal-grid"><span></span>${Object.values(C.SLOTS).map(s => `<b class="mg-h">${s}</b>`).join('')}
     ${C.weekDays(wk).map((d, i) => `<b class="mg-d ${d === today() ? 'today' : ''}">${DAYS[parseDay(d).getDay()]} <small>${parseDay(d).getDate()}</small></b>${Object.keys(C.SLOTS).map(s => { const k = `${i}${s}`; const r = plan[k] && byId(plan[k]); const p = r && photosOf(r.id)[0]; return `<div class="mg-cell ${r ? 'set' : ''}">${p ? `<span class="mg-ph">${img(p, { ratio: false, alt: '' })}</span>` : ''}<label class="sr-only" for="mp-${k}">${DAYS_LONG[parseDay(d).getDay()]} ${C.SLOTS[s]}</label><select class="input" id="mp-${k}" data-bind="plan-set" data-wk="${wk}" data-k="${k}"><option value="">—</option>${rs.map(x => `<option value="${esc(x.id)}" ${r?.id === x.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select></div>`; }).join('')}`).join('')}</div>
   <p class="small muted evergreen">${icon('link')} Cada refeição está ligada a uma receita, então a lista de compras é criada a partir dos ingredientes.</p>`;
@@ -141,4 +175,4 @@ function viewHouse(r) {
   const tab = pickTab(HOTABS, r.tab);
   return `${hubHead(9, 'Uma Casa que se Organiza', 'Casa e <em>Estilo de Vida</em>', 'Tarefas em ritmo certo, plantas sempre cuidadas, tudo o que você possui registrado, garantias e manuais em um só lugar e os ambientes que você está sonhando.', '')}${folderTabs('house', HOTABS, tab)}<div class="tab-body">${{ chores: tabChores, plants: tabPlants, inventory: tabInventory, vault: tabVault, rooms: tabRooms }[tab]()}</div>`;
 }
-export const VIEWS_LIFE = { mind: viewMind, kitchen: viewKitchen, house: viewHouse };
+export const VIEWS_LIFE = { mind: viewMind };

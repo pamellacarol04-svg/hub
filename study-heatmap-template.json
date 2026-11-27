@@ -1,0 +1,11 @@
+{
+  "format": "hub-study-sessions-v1",
+  "sessions": [],
+  "_instructions": "Copie o objeto _example para sessions e substitua os valores. A importação adiciona sessões sem apagar as existentes. Se course não corresponder a um curso cadastrado, a sessão será importada sem vínculo.",
+  "_example": {
+    "date": "2026-11-26",
+    "lesson": "Trauma Abdominal",
+    "minutes": 60,
+    "course": "Cirurgia Geral"
+  }
+}

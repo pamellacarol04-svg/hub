@@ -14,7 +14,7 @@ export const amt = (v, cls = '') => `<span class="amt ${cls}">${esc(moneyWhole(v
 export const emptyNote = (text, action = '') => `<div class="empty-note"><p>${text}</p>${action}</div>`;
 export const seg = (action, list, cur, label, extra = '') => `<div class="segs" role="group" aria-label="${esc(label)}">${list.map(([v, l]) => `<button type="button" data-action="${action}" data-v="${esc(v)}" ${extra} aria-pressed="${String(cur) === String(v)}">${esc(l)}</button>`).join('')}</div>`;
 export const pct = (a, b) => (b > 0 ? Math.max(0, Math.min(1, a / b)) : 0);
-export const meter = (p, tone = 'c1', label = '') => `<span class="meter t-${tone}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}" ${label ? `aria-label="${esc(label)}"` : ''}><i style="width:${(p * 100).toFixed(1)}%"></i></span>`;
+export const meter = (p, tone = 'c1', label = '', fillColor = null) => `<span class="meter t-${tone}" ${fillColor ? `style="--meter-fill:${esc(fillColor)}"` : ''} role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}" ${label ? `aria-label="${esc(label)}"` : ''}><i style="width:${(p * 100).toFixed(1)}%"></i></span>`;
 
 // ---------------------------------------------------------------------
 // Paper furniture
@@ -92,7 +92,7 @@ export const bigWin = (msg) => { if (S.settings.decor !== false) confetti(110); 
 const QUICK = [['note', 'Entrada', 'inbox'], ['task', 'Tarefa', 'checkCircle'], ['block', 'Compromisso', 'clock'], ['txn', 'Dinheiro', 'wallet']];
 const planCategoryField = () => `<label class="field"><span>Categoria</span><select class="input" name="category"><option value="">Sem categoria</option>${Object.entries(PLAN_CATEGORIES).map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('')}</select></label>`;
 const appointmentTypeField = () => `<label class="field"><span>Tipo de compromisso</span><select class="input" name="appointmentType" required>${Object.entries(APPOINTMENT_TYPES).map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('')}</select></label>`;
-const appointmentColorField = () => `<label class="field"><span>Cor do compromisso (HEX)</span><span class="hex-wrap"><input type="color" value="#BFDCF5" data-bind="block-color-picker" aria-label="Escolher cor do compromisso"><input class="input" type="text" name="color" value="#BFDCF5" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" inputmode="text" data-bind="block-color-hex" required aria-label="Código hexadecimal da cor"></span></label>`;
+const appointmentColorField = () => `<label class="field"><span>Cor do compromisso (HEX)</span><span class="hex-wrap"><input type="color" value="#BFDCF5" data-bind="hex-color-picker" aria-label="Escolher cor do compromisso"><input class="input" type="text" name="color" value="#BFDCF5" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" inputmode="text" data-bind="hex-color-input" required aria-label="Código hexadecimal da cor"></span></label>`;
 export function openQuick(mode = 'note') {
   const tabs = `<div class="q-tabs" role="tablist">${QUICK.map(([v, l, ic]) => `<button type="button" role="tab" class="q-tab" data-action="quick" data-v="${v}" aria-selected="${mode === v}">${icon(ic)}<span>${l}</span></button>`).join('')}</div>`;
   let body = '';

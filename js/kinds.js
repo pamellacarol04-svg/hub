@@ -69,6 +69,7 @@ export const QUARTERS = { 1: 'Q1', 2: 'Q2', 3: 'Q3', 4: 'Q4' };
 export const EXP_CATS = { home: 'Casa e aluguel', food: 'Supermercado', eating: 'Restaurantes', transport: 'Transporte', shopping: 'Compras', health: 'Saúde e beleza', fun: 'Diversão e hobbies', subs: 'Assinaturas', travel: 'Viagens', gifts: 'Presentes', learning: 'Estudos', bills: 'Contas', other: 'Outro' };
 export const INC_CATS = { salary: 'Salário', freelance: 'Freelancer', side: 'Renda extra', gift: 'Presente', interest: 'Juros', other: 'Outras receitas' };
 export const TXN_KINDS = { out: 'Saída', in: 'Entrada' };
+export const RECURRENCE_CYCLES = { none: 'Não repetir', weekly: 'Semanal', monthly: 'Mensal', quarterly: 'A cada 3 meses', yearly: 'Anual' };
 export const SUB_CYCLES = { monthly: 'Mensal', yearly: 'Anual', quarterly: 'A cada 3 meses', weekly: 'Semanal' };
 export const SUB_STATUS = { active: 'Ativa', paused: 'Pausada', cancelled: 'Cancelada' };
 export const ACCOUNT_KINDS = { checking: 'Conta corrente', savings: 'Poupança', invest: 'Investimentos', retirement: 'Aposentadoria', ewallet: 'Carteira digital', cash: 'Dinheiro', property: 'Imóvel', other: 'Outro' };
@@ -156,7 +157,8 @@ export const DEFS = {
   tactic:   { label: 'Weekly tactic', fields: [F.title('Tactic', 'e.g. Write 2 case studies'), sel('parent_id', '12-week year', refOpts('sprint', 'Pick one')), F.d('goal', 'For which goal', 'text', { ph: 'e.g. Ship the portfolio' })] },
   qreview:  { label: 'Quarterly review', fields: [{ k: 'num', label: 'Year', type: 'number', req: true }, sel('cat', 'Quarter', QUARTERS), num('score', 'How it went (1–10)', { min: 1, max: 10 }), F.lines('wins', 'Wins (one per line)'), F.lines('lessons', 'Lessons (one per line)'), F.lines('next', 'Next quarter, I will… (one per line)')] },
   // 3 Money
-  txn:      { label: 'Transaction', fields: [F.title('What', 'e.g. Groceries'), F.status('Kind', TXN_KINDS), F.amount('Amount', true), F.day('Date', true), { k: 'cat', label: 'Category', type: 'select', options: () => [...Object.entries(EXP_CATS), ...Object.entries(INC_CATS).map(([k, v]) => [k, `${v} (income)`])] }, F.body('Note', '', 2)] },
+  txn:      { label: 'Movimentação', fields: [F.title('Descrição', 'Ex.: Supermercado'), F.status('Tipo', TXN_KINDS), F.amount('Valor', true), F.day('Data', true), { k: 'cat', label: 'Categoria', type: 'select', options: () => [...Object.entries(EXP_CATS), ...Object.entries(INC_CATS).map(([k, v]) => [k, `${v} (receita)`])] }, F.ref('d.card', 'creditcard', 'Cartão de crédito', 'Sem cartão'), num('installments', 'Parcelas', { min: 1, max: 48, step: 1 }), sel('d.recurrence', 'Recorrência', RECURRENCE_CYCLES, { hint: 'Repete sem data final. As ocorrências vencidas são registradas ao abrir o HUB; para parar, edite esta movimentação e escolha “Não repetir”.' }), F.body('Observações', '', 2)] },
+  creditcard: { label: 'Cartão de crédito', fields: [F.title('Nome/apelido do cartão', 'Ex.: Cartão principal'), F.d('bank', 'Banco/emissor', 'text'), F.d('brand', 'Bandeira', 'text'), F.d('color', 'Cor do cartão (HEX)', 'color', { req: true, default: '#DCCEF3' }), F.d('last4', 'Últimos 4 dígitos do cartão', 'digits4', { ph: '1234', hint: 'Não informe o número completo nem o CVC.' }), F.d('limit', 'Limite total', 'money'), num('closingDay', 'Dia de fechamento', { min: 1, max: 31, step: 1 }), num('dueDay', 'Dia de vencimento', { min: 1, max: 31, step: 1 })] },
   sub:      { label: 'Subscription', fields: [F.title('Service', 'e.g. Spotify'), F.amount('Price', true), F.cat('Billed', SUB_CYCLES), F.day('First charge', true), F.status('Status', SUB_STATUS), F.d('ends', 'Ends on (if it does)', 'date'), F.url('Manage link')] },
   debt:     { label: 'Debt', fields: [F.title('Debt', 'e.g. Credit card'), F.amount('Balance', true), num('rate', 'Interest rate (% a year)', { min: 0, max: 100 }), F.d('min', 'Minimum payment', 'money')] },
   account:  { label: 'Account', fields: [F.title('Account', 'e.g. High-yield savings'), F.cat('Kind', ACCOUNT_KINDS), F.amount('Balance', true)] },
@@ -169,7 +171,7 @@ export const DEFS = {
   folio:    { label: 'Projeto do portfólio', fields: [F.title('Projeto', 'Ex.: Nova identidade da Juniper'), F.cat('Tipo', FOLIO_KINDS), F.day('Concluído em'), F.url('Link do projeto'), F.body('A história (problema, processo e resultado)', '', 4)], photos: 'many', photoLabel: 'Adicionar imagens' },
   role:     { label: 'Experiência', fields: [F.title('Cargo', 'Ex.: Designer sênior'), F.d('company', 'Empresa', 'text', { req: true }), F.d('from', 'De', 'month'), F.d('to', 'Até (vazio para o cargo atual)', 'month'), F.lines('points', 'Principais resultados (um por linha)')] },
   // 5 Academic & Learning
-  course:   { label: 'Curso', fields: [F.title('Curso', 'Ex.: Introdução à pesquisa UX'), F.d('code', 'Código ou plataforma', 'text'), F.d('teacher', 'Professor', 'text'), F.day('Termina em'), F.url('Link do curso'), F.steps('Grade curricular (uma semana ou módulo por linha)')] },
+  course:   { label: 'Curso', fields: [F.title('Curso', 'Ex.: Introdução à pesquisa UX'), F.d('color', 'Cor do cartão (HEX)', 'color', { req: true, default: '#BFDCF5' }), F.d('progressColor', 'Cor da barra de progresso (HEX)', 'color', { req: true, default: '#3B74B5' }), F.d('code', 'Código ou plataforma', 'text'), F.d('teacher', 'Professor', 'text'), F.day('Termina em'), F.url('Link do curso'), F.steps('Grade curricular (uma semana ou módulo por linha)')] },
   deck:     { label: 'Baralho de flashcards', fields: [F.title('Baralho', 'Ex.: Métodos de pesquisa'), sel('parent_id', 'Curso', refOpts('course', 'Sem curso'))] },
   flash:    { label: 'Flashcard', fields: [F.title('Frente (pergunta)', 'Ex.: O que é teste com fala em voz alta?'), F.body('Verso (resposta)', '', 3), sel('parent_id', 'Baralho', refOpts('deck', 'Escolha um baralho'))] },
   cnote:    { label: 'Nota Cornell', fields: [F.title('Tema', 'Ex.: Semana 3: entrevistas'), sel('parent_id', 'Curso', refOpts('course', 'Sem curso')), F.day('Data', true), F.lines('cues', 'Perguntas-chave (uma por linha)'), F.body('Anotações', '', 6), F.d('summary', 'Resumo', 'textarea', { wide: true, rows: 2 })] },
@@ -214,6 +216,7 @@ export const DEFS = {
   zettel:   { label: 'Nota', fields: [F.title('Ideia (uma por nota)', 'Ex.: Hábitos vencem metas'), F.body('Nota. Vincule outras notas com [[Título da nota]]', '', 6), tags()] },
   // 14 Time-Boxing & Deep Work
   session:  { label: 'Sessão de foco', fields: [F.title('No que trabalhei', ''), F.day('Data', true), { k: 'num', label: 'Minutos', type: 'number', req: true, min: 1, max: 600 }, F.cat('Tipo', SESSION_KINDS), sel('parent_id', 'Tarefa', refOpts('task', 'Sem tarefa'))] },
+  study:    { label: 'Sessão de estudo', fields: [F.title('O que estudei', 'Ex.: Revisão de flashcards'), F.day('Data', true), { k: 'num', label: 'Minutos', type: 'number', req: true, min: 1, max: 1440 }, F.ref('parent_id', 'course', 'Curso', 'Estudo livre')] },
   waste:    { label: 'Perda de tempo', fields: [F.title('O que aconteceu', 'Ex.: Naveguei pelas redes depois do almoço'), F.day('Data', true), { k: 'num', label: 'Minutos', type: 'number', req: true, min: 1, max: 1440 }, F.cat('Tipo', WASTE_KINDS), F.d('instead', 'O que eu poderia fazer', 'text')] },
   // 15 Memory Archive
   reel:     { label: 'Melhor momento do mês', fields: [{ k: 'title', label: 'Legenda', type: 'text', max: 140, wide: true }, F.d('month', 'Mês', 'month', { req: true })], photos: 'one', photoLabel: 'Adicionar sua foto favorita do mês' },
@@ -246,15 +249,16 @@ export function fieldHtml(f, x = {}) {
     case 'month': return `<label class="field">${lab}<input class="input" type="month" id="${id}" name="${name}" value="${esc(String(v || x.__default?.month || '').slice(0, 7))}" ${f.req ? 'required' : ''}></label>`;
     case 'time': return `<label class="field">${lab}<input class="input" type="time" id="${id}" name="${name}" value="${esc(String(v || '').slice(0, 5))}" ${f.req ? 'required' : ''}></label>`;
     case 'money': return `<label class="field">${lab}<input class="input num" inputmode="decimal" id="${id}" name="${name}" value="${v ?? ''}" placeholder="0${decimals() ? '.00' : ''}" ${f.req ? 'required' : ''}></label>`;
-    case 'number': return `<label class="field">${lab}<input class="input num" inputmode="decimal" id="${id}" name="${name}" value="${v ?? ''}" ${f.req ? 'required' : ''}></label>`;
+    case 'number': return `<label class="field">${lab}<input class="input num" type="number" inputmode="decimal" id="${id}" name="${name}" value="${v ?? ''}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} step="${f.step ?? 'any'}" ${f.req ? 'required' : ''}></label>`;
+    case 'digits4': return `<label class="field">${lab}<input class="input num" type="text" inputmode="numeric" id="${id}" name="${name}" value="${esc(v ?? '')}" maxlength="4" pattern="[0-9]{4}" placeholder="${esc(f.ph || '')}" autocomplete="off">${f.hint ? `<small class="muted">${esc(f.hint)}</small>` : ''}</label>`;
     case 'color': {
       const color = normalizeHexColor(v) || LEGACY_BLOCK_COLORS[x.cat] || normalizeHexColor(f.default) || '#BFDCF5';
-      return `<label class="field">${lab}<span class="hex-wrap"><input type="color" value="${color}" data-bind="block-color-picker" aria-label="Escolher cor do compromisso"><input class="input" type="text" id="${id}" name="${name}" value="${color}" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" inputmode="text" data-bind="block-color-hex" ${f.req ? 'required' : ''} aria-label="Código hexadecimal da cor"></span></label>`;
+      return `<label class="field">${lab}<span class="hex-wrap"><input type="color" value="${color}" data-bind="hex-color-picker" aria-label="Escolher cor"><input class="input" type="text" id="${id}" name="${name}" value="${color}" maxlength="7" pattern="#?[0-9A-Fa-f]{6}" spellcheck="false" inputmode="text" data-bind="hex-color-input" ${f.req ? 'required' : ''} aria-label="Código hexadecimal da cor"></span></label>`;
     }
     case 'url': return `<label class="field${wide}">${lab}<input class="input" type="url" id="${id}" name="${name}" value="${esc(v || '')}" placeholder="https://"></label>`;
     case 'check': return `<label class="switch${wide}"><input type="checkbox" name="${name}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
     case 'rating': return `<div class="field">${lab}${ratingInput(name, v, f.label)}</div>`;
-    case 'select': return `<label class="field${wide}">${lab}<select class="input" id="${id}" name="${name}" ${f.req ? 'required' : ''}>${((typeof f.options === 'function' ? f.options() : f.options) || []).map(([k, l]) => `<option value="${esc(k)}" ${String(v ?? x.__default?.[f.k] ?? '') === String(k) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+    case 'select': return `<label class="field${wide}">${lab}<select class="input" id="${id}" name="${name}" ${f.req ? 'required' : ''}>${((typeof f.options === 'function' ? f.options() : f.options) || []).map(([k, l]) => `<option value="${esc(k)}" ${String(v ?? x.__default?.[f.k] ?? '') === String(k) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>${f.hint ? `<small class="muted">${esc(f.hint)}</small>` : ''}</label>`;
     case 'tags': return `<div class="field wide">${lab}<div class="chips">${f.options.map(t => `<label class="chip"><input type="checkbox" name="${name}" value="${esc(t)}" ${(v || []).includes(t) ? 'checked' : ''}> ${esc(t)}</label>`).join('')}</div></div>`;
     case 'currency': { const cur = v || x.__default?.currency || S.settings.currency || 'USD'; return `<label class="field">${lab}<select class="input" id="${id}" name="${name}">${CURRENCIES.map(([c, n]) => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c} · ${esc(n)}</option>`).join('')}</select></label>`; }
     case 'ref': { const hs = S.items.filter(g => g.kind === f.of); const cur = v || x.__default?.[f.k] || ''; return `<label class="field">${lab}<select class="input" id="${id}" name="${name}"><option value="">${esc(f.none || 'None')}</option>${hs.map(g => `<option value="${esc(g.id)}" ${cur === g.id ? 'selected' : ''}>${esc(g.title || g.data?.name || 'Untitled')}</option>`).join('')}</select></label>`; }
@@ -287,6 +291,11 @@ export function readForm(f, fields, base = {}) {
       case 'country': v = String(f.elements[name]?.value || '') || null; break;
       case 'lines': v = String(f.elements[name]?.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 200); break;
       case 'money': case 'number': v = toNum(f.elements[name]?.value); break;
+      case 'digits4': {
+        v = String(f.elements[name]?.value ?? '').trim() || null;
+        if (v && !/^\d{4}$/.test(v)) return { error: `${fd.label} deve conter exatamente 4 dígitos.` };
+        break;
+      }
       case 'color': {
         v = normalizeHexColor(f.elements[name]?.value);
         if (!v) return { error: `${fd.label} deve ser um código hexadecimal válido, como #AABBCC.` };
@@ -318,12 +327,12 @@ export function readForm(f, fields, base = {}) {
 export const AFTER = {};
 export const BEFORE = {};
 BEFORE.block = (row) => { row.data.meet = row.data.appointmentType === 'reuniao'; };
-BINDS['block-color-picker'] = (input, type) => {
+BINDS['hex-color-picker'] = (input, type) => {
   if (type !== 'input' && type !== 'change') return;
   const text = input.closest('.hex-wrap')?.querySelector('input[type="text"]');
   if (text) text.value = input.value.toUpperCase();
 };
-BINDS['block-color-hex'] = (input, type) => {
+BINDS['hex-color-input'] = (input, type) => {
   const color = normalizeHexColor(input.value);
   if (!color) return;
   const picker = input.closest('.hex-wrap')?.querySelector('input[type="color"]');
@@ -377,7 +386,7 @@ FORMS.item = async (f) => {
   BEFORE[ek]?.(row, old);
   try {
     const saved = await save(row);
-    AFTER[ek]?.(saved, !old); if (ek !== kind) AFTER[kind]?.(saved, !old);
+    await AFTER[ek]?.(saved, !old); if (ek !== kind) await AFTER[kind]?.(saved, !old);
     if (pending.length) { const files = pending; pending = []; await addPhotos(saved.id, files); }
     closeModal(); buzz(10); rerender();
     editAfter?.(saved, !old);

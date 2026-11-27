@@ -1,5 +1,5 @@
-// Home and the fifteen hubs: [route, label, icon, a short line, callout colour].
-/** Home and the fifteen hubs: [route, label, icon, a short line]. */
+// Home and the thirteen hubs: [route, label, icon, a short line, callout colour].
+/** Home and the thirteen hubs: [route, label, icon, a short line]. */
 export const HUBS = [
   ['home', 'Início', 'house', 'hoje, em resumo', 'yellow'],
   ['vision', 'Visão e Identidade', 'crystal', 'quem estou me tornando', 'purple'],
@@ -7,10 +7,7 @@ export const HUBS = [
   ['money', 'Finanças', 'wallet', 'entradas, saídas e patrimônio', 'green'],
   ['career', 'Carreira e Negócios', 'briefcase', 'projetos, pessoas e portfólio', 'blue'],
   ['learn', 'Aprendizado', 'graduation', 'cursos, cartões e notas', 'brown'],
-  ['health', 'Saúde e Fitness', 'barbell', 'treinos, alimentação e medidas', 'green'],
   ['mind', 'Bem-estar Mental', 'heartbeat', 'humor, gatilhos e terapia', 'pink'],
-  ['kitchen', 'Cozinha e Alimentação', 'chef', 'receitas, refeições e compras', 'orange'],
-  ['house', 'Casa e Estilo de Vida', 'couch', 'tarefas, plantas e documentos', 'yellow'],
   ['travel', 'Viagens e Aventuras', 'airplane', 'mapa, viagens e diário', 'blue'],
   ['media', 'Conteúdo e Mídia', 'books', 'ler, assistir, ouvir e jogar', 'purple'],
   ['social', 'Relacionamentos', 'users', 'datas, presentes e eventos', 'pink'],
@@ -25,11 +22,8 @@ export const HUB_TABS = {
   plan: [['day', 'Diário'], ['week', 'Semanal'], ['quarter', 'Trimestral'], ['year', 'Anual'], ['twelve', 'Ano de 12 semanas'], ['okr', 'OKRs'], ['review', 'Revisão trimestral']],
   money: [['flow', 'Entradas e saídas'], ['subs', 'Assinaturas'], ['debt', 'Pagamento de dívidas'], ['worth', 'Patrimônio líquido'], ['wish', 'Lista de desejos']],
   career: [['projects', 'Projetos'], ['crm', 'Rede de contatos'], ['meetings', 'Notas de reuniões'], ['portfolio', 'Portfólio e currículo']],
-  learn: [['courses', 'Cursos'], ['cards', 'Flashcards'], ['notes', 'Notas Cornell'], ['certs', 'Certificados']],
-  health: [['train', 'Treinos'], ['food', 'Macronutrientes'], ['body', 'Corpo e passos'], ['gallery', 'Galeria de progresso']],
+  learn: [['courses', 'Cursos'], ['cards', 'Flashcards'], ['notes', 'Notas Cornell'], ['certs', 'Certificados'], ['study', 'Tempo de estudo']],
   mind: [['mood', 'Humor'], ['triggers', 'Gatilhos'], ['therapy', 'Notas de terapia'], ['journal', 'Diário e gratidão']],
-  kitchen: [['recipes', 'Receitas'], ['plan', 'Plano alimentar'], ['grocery', 'Lista de compras']],
-  house: [['chores', 'Tarefas'], ['plants', 'Plantas'], ['inventory', 'Inventário'], ['vault', 'Garantias'], ['rooms', 'Ambientes']],
   travel: [['map', 'Mapa mundial'], ['trips', 'Viagens'], ['bucket', 'Lista de desejos'], ['diary', 'Diário de viagem']],
   media: [['books', 'Livros'], ['watch', 'Lista para assistir'], ['pods', 'Notas de podcasts'], ['games', 'Jogos']],
   social: [['people', 'Pessoas e encontros'], ['gifts', 'Ideias de presentes'], ['events', 'Eventos'], ['repair', 'Diário de conflitos']],

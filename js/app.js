@@ -16,6 +16,7 @@ import { VIEWS_WORLD } from './views/world.js';
 import { VIEWS_VAULT } from './views/mindvault.js';
 import { openQuick, capture, badge } from './views/common.js';
 import { HUBS, HUB_TABS } from './hubs.js';
+import { processRecurringTransactions } from './hub.js';
 
 export { HUBS };
 const VIEWS = { settings: viewSettings, guide: viewGuide, home: (r) => VIEWS_HOME.home(r, HUBS), ...VIEWS_VISION, ...VIEWS_WORK, ...VIEWS_GROWTH, ...VIEWS_LIFE, ...VIEWS_WORLD, ...VIEWS_VAULT };
@@ -144,7 +145,7 @@ hooks.after.push(() => {
 // ---------------------------------------------------------------------
 // Search across every hub
 // ---------------------------------------------------------------------
-const SEARCH_KINDS = { task: 'Tarefa', project: 'Projeto', block: 'Reunião', meeting: 'Notas de reunião', capture: 'Caixa de entrada', vpin: 'Quadro de visão', value: 'Valor', antigoal: 'Antiobjetivo', manifest: 'Manifestação', objective: 'Objetivo', goal: 'Meta anual', sprint: 'Ano de 12 semanas', tactic: 'Tática', qreview: 'Revisão trimestral', txn: 'Finanças', sub: 'Assinatura', debt: 'Dívida', account: 'Conta', wish: 'Lista de desejos', contact: 'Contato', folio: 'Portfólio', role: 'Experiência', course: 'Curso', deck: 'Baralho', flash: 'Flashcard', cnote: 'Nota Cornell', cert: 'Certificado', lift: 'Musculação', cardio: 'Cardio', meal: 'Alimentação', trigger: 'Gatilho', therapy: 'Terapia', journal: 'Diário', recipe: 'Receita', chore: 'Tarefa doméstica', plant: 'Planta', belonging: 'Inventário', warranty: 'Garantia', room: 'Ambiente', trip: 'Viagem', stop: 'Itinerário', bucket: 'Lista de desejos', tdiary: 'Diário de viagem', book: 'Livro', watch: 'Lista para assistir', pod: 'Podcast', game: 'Jogo', person: 'Pessoa', gift: 'Presente', event: 'Evento', conflict: 'Diário de conflitos', clip: 'Clipping', swipe: 'Arquivo inspirador', zettel: 'Nota', session: 'Foco', waste: 'Perda de tempo', reflect: 'Reflexão', letter: 'Carta', habit: 'Hábito' };
+const SEARCH_KINDS = { task: 'Tarefa', project: 'Projeto', block: 'Reunião', meeting: 'Notas de reunião', capture: 'Caixa de entrada', vpin: 'Quadro de visão', value: 'Valor', antigoal: 'Antiobjetivo', manifest: 'Manifestação', objective: 'Objetivo', goal: 'Meta anual', sprint: 'Ano de 12 semanas', tactic: 'Tática', qreview: 'Revisão trimestral', txn: 'Finanças', sub: 'Assinatura', debt: 'Dívida', account: 'Conta', wish: 'Lista de desejos', contact: 'Contato', folio: 'Portfólio', role: 'Experiência', course: 'Curso', deck: 'Baralho', flash: 'Flashcard', cnote: 'Nota Cornell', cert: 'Certificado', lift: 'Musculação', cardio: 'Cardio', meal: 'Alimentação', trigger: 'Gatilho', therapy: 'Terapia', journal: 'Diário', recipe: 'Receita', chore: 'Tarefa doméstica', plant: 'Planta', belonging: 'Inventário', warranty: 'Garantia', room: 'Ambiente', trip: 'Viagem', stop: 'Itinerário', bucket: 'Lista de desejos', tdiary: 'Diário de viagem', book: 'Livro', watch: 'Lista para assistir', pod: 'Podcast', game: 'Jogo', person: 'Pessoa', gift: 'Presente', event: 'Evento', conflict: 'Diário de conflitos', clip: 'Clipping', swipe: 'Arquivo inspirador', zettel: 'Nota', session: 'Foco', study: 'Estudo', waste: 'Perda de tempo', reflect: 'Reflexão', letter: 'Carta', habit: 'Hábito' };
 function searchResults(q) {
   const t = q.trim().toLowerCase(); if (t.length < 2) return [];
   return S.items.filter(x => SEARCH_KINDS[x.kind] && `${x.title} ${x.body || ''} ${dget(x, 'author') || ''} ${dget(x, 'company') || ''} ${dget(x, 'show') || ''} ${(dget(x, 'tags') || []).join(' ')}`.toLowerCase().includes(t)).slice(0, 10);
@@ -234,7 +235,12 @@ document.addEventListener('submit', async (e) => {
 async function afterLogin() {
   S.me = S.session?.user?.id || null; db.me = S.me;
   S.unlocked = await db.owns();
-  if (S.unlocked) await loadData();
+  if (S.unlocked) {
+    await loadData();
+    render();
+    try { if (await processRecurringTransactions()) rerender(); } catch (e) { fail(e); }
+    return;
+  }
   render();
 }
 window.addEventListener('hashchange', () => { closeModal(); document.body.classList.remove('nav-on'); if (S.session && S.unlocked) { renderShell(); window.scrollTo(0, 0); } });

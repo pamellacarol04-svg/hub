@@ -2,8 +2,8 @@
 // projects, meals point at recipes, gifts at people, flashcards at decks, sessions at tasks, and the
 // home page and the Memory Archive roll everything up. All of it is evergreen: dates are worked out
 // from today, so weeks, quarters and years never need a new page.
-import { S, today, addDays, addMonths, parseDay, daysBetween, monthKey, round2, hash, MONTHS } from './core.js';
-import { items, dget, sortBy, byId, EXP_CATS, INC_CATS } from './kinds.js';
+import { S, today, addDays, addMonths, parseDay, isoDate, daysBetween, monthKey, round2, hash, MONTHS } from './core.js';
+import { items, dget, sortBy, byId, saveMany, patch, EXP_CATS, INC_CATS } from './kinds.js';
 export { EXP_CATS, INC_CATS };
 
 export const D = () => S.settings.data || {};
@@ -74,6 +74,89 @@ export const txns = () => items('txn');
 export const incomeIn = (ym = monthKey()) => sumA(txns().filter(t => t.status === 'in' && inM(t.day, ym)));
 export const spentIn = (ym = monthKey()) => sumA(txns().filter(t => t.status !== 'in' && inM(t.day, ym)));
 export function spendByCat(ym = monthKey()) { const m = {}; for (const t of txns().filter(t => t.status !== 'in' && inM(t.day, ym))) m[t.cat || 'other'] = round2((m[t.cat || 'other'] || 0) + (Number(t.amount) || 0)); return Object.entries(m).sort((a, b) => b[1] - a[1]); }
+export function studyMinutesByDay(y = year()) {
+  const minutes = {};
+  for (const session of items('study')) {
+    if (!String(session.day || '').startsWith(`${y}-`)) continue;
+    minutes[session.day] = (minutes[session.day] || 0) + Math.max(0, Number(session.num) || 0);
+  }
+  return minutes;
+}
+const RECURRENCE_MONTHS = { monthly: 1, quarterly: 3, yearly: 12 };
+const RECURRENCE_TYPES = new Set(['weekly', ...Object.keys(RECURRENCE_MONTHS)]);
+const isISODate = (date) => /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) && isoDate(parseDay(date)) === date;
+export function recurrenceOccurrenceDate(anchor, frequency, index = 1) {
+  if (!isISODate(anchor) || !RECURRENCE_TYPES.has(frequency) || !Number.isSafeInteger(index) || index < 1) return null;
+  return frequency === 'weekly' ? addDays(anchor, index * 7) : addMonths(anchor, index * RECURRENCE_MONTHS[frequency]);
+}
+/** Create all due entries for recurring transactions; occurrence metadata makes retries idempotent. */
+export async function processRecurringTransactions(until = today()) {
+  if (!isISODate(until)) throw new Error('Invalid recurring transaction cutoff date.');
+  let created = 0;
+  for (const source of [...txns()]) {
+    let current = source;
+    const frequency = dget(current, 'recurrence');
+    if (!RECURRENCE_TYPES.has(frequency) || !['in', 'out'].includes(current.status) || !current.day) continue;
+
+    const storedIndex = Number(dget(current, 'recurrenceIndex'));
+    let index = Number.isSafeInteger(storedIndex) && storedIndex > 0 ? storedIndex : 1;
+    let nextDate = dget(current, 'nextOccurrence') || recurrenceOccurrenceDate(current.day, frequency, index);
+    if (!isISODate(nextDate)) throw new Error(`Invalid recurrence date for "${current.title || 'transaction'}".`);
+    const existing = new Set(S.items
+      .filter(item => item.kind === 'txn' && dget(item, 'recurrenceSource') === current.id)
+      .map(item => dget(item, 'occurrenceDate')));
+    const rows = [];
+    let checked = 0;
+    while (nextDate <= until) {
+      if (checked++ >= 5000) throw new Error(`Too many missed occurrences for "${current.title || 'transaction'}".`);
+      if (!existing.has(nextDate)) {
+        const data = { ...(current.data || {}), recurrence: 'none', recurrenceSource: current.id, occurrenceDate: nextDate };
+        delete data.nextOccurrence;
+        delete data.recurrenceIndex;
+        rows.push({
+          kind: 'txn', parent_id: current.parent_id || null, title: current.title, body: current.body,
+          day: nextDate, amount: current.amount, status: current.status, cat: current.cat, data,
+        });
+      }
+      index++;
+      nextDate = recurrenceOccurrenceDate(current.day, frequency, index);
+      if (!nextDate) throw new Error(`Invalid recurrence schedule for "${current.title || 'transaction'}".`);
+    }
+    if (rows.length) {
+      await saveMany(rows);
+      created += rows.length;
+    }
+    if (dget(current, 'nextOccurrence') !== nextDate || Number(dget(current, 'recurrenceIndex')) !== index) {
+      current = await patch(current, { data: { nextOccurrence: nextDate, recurrenceIndex: index } });
+    }
+  }
+  return created;
+}
+export const cardInvoiceMonth = (day, closingDay) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(day || ''))) return null;
+  const ym = String(day).slice(0, 7);
+  return Number(String(day).slice(8, 10)) > Number(closingDay || 31) ? addMonths(`${ym}-01`, 1).slice(0, 7) : ym;
+};
+export const cardInvoiceDueDate = (card, ym) => {
+  const date = parseDay(`${ym}-01`);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const due = Math.min(Math.max(1, Number(dget(card, 'dueDay')) || 1), lastDay);
+  return `${ym}-${String(due).padStart(2, '0')}`;
+};
+export function cardInvoiceLines(card, ym, transactions = txns()) {
+  return transactions.flatMap(t => {
+    if (t.status === 'in' || dget(t, 'card') !== card.id || !t.day) return [];
+    const firstMonth = cardInvoiceMonth(t.day, dget(card, 'closingDay'));
+    if (!firstMonth) return [];
+    const count = Math.max(1, Math.min(48, Math.floor(Number(dget(t, 'installments')) || 1)));
+    const amount = Number(t.amount) || 0;
+    const part = round2(amount / count);
+    return Array.from({ length: count }, (_, i) => {
+      if (addMonths(`${firstMonth}-01`, i).slice(0, 7) !== ym) return null;
+      return { ...t, installmentNumber: i + 1, installmentCount: count, installmentAmount: i === count - 1 ? round2(amount - part * (count - 1)) : part };
+    }).filter(Boolean);
+  }).sort((a, b) => String(a.day).localeCompare(String(b.day)) || String(a.title).localeCompare(String(b.title)));
+}
 export const subMonthly = (s) => { const p = Number(s.amount) || 0; return s.cat === 'yearly' ? p / 12 : s.cat === 'weekly' ? p * 52 / 12 : s.cat === 'quarterly' ? p / 3 : p; };
 /** A subscription is active unless it's paused or cancelled, or its end date has passed. */
 export const subActive = (s, d = today()) => !['paused', 'cancelled'].includes(s.status) && !(dget(s, 'ends') && dget(s, 'ends') < d);

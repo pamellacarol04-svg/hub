@@ -22,7 +22,7 @@ export function keyDates(a, b) {
   for (const p of items('project').filter(p => p.status !== 'done')) add(p.day, `${p.title} due`, 'briefcase', '#/career', 'c6');
   for (const c of items('course')) add(c.day, `${c.title} ends`, 'graduation', '#/learn', 'c4');
   for (const l of items('letter').filter(l => l.status !== 'opened')) add(dget(l, 'open'), 'A letter to open', 'envelope', '#/archive?tab=letters', 'c3');
-  for (const w of items('warranty')) add(dget(w, 'ends'), `${w.title} warranty ends`, 'shieldCheck', '#/house?tab=vault', 'c5');
+  for (const w of items('warranty')) add(dget(w, 'ends'), `${w.title} warranty ends`, 'shieldCheck', '#/home', 'c5');
   for (const s of items('sub').filter(s => C.subActive(s) && s.cat === 'yearly')) add(C.nextCharge(s, a), `${s.title} renews`, 'repeat', '#/money?tab=subs', 'c5');
   for (const m of items('meeting')) add(m.day, m.title, 'users', '#/career?tab=meetings', 'c1');
   return sortBy(out, x => x.day);
@@ -46,8 +46,19 @@ ACTIONS['day-nav'] = (b) => { S.ui.pday = b.dataset.v === '0' ? null : addDays(S
 BINDS['day-pick'] = (t, type) => { if (type === 'change' && t.value) { S.ui.pday = t.value === today() ? null : t.value; rerender(); } };
 BINDS['day-note'] = async (t, type) => { if (type !== 'change') return; await saveData({ dayNotes: { ...(D().dayNotes || {}), [t.dataset.day]: t.value.slice(0, 4000) } }); toast('Saved.'); };
 FORMS['day-task'] = async (f) => { const t = f.elements.t.value.trim(); if (!t) return; try { await save({ kind: 'task', title: t.slice(0, 300), day: f.dataset.day, cat: f.elements.p.value || 'med', status: 'todo' }); f.reset(); rerender(); setTimeout(() => document.getElementById('dt-in')?.focus(), 30); } catch (e) { fail(e); } };
-const H0 = 6, H1 = 23;
+const H0 = 0, H1 = 24, SLOT_MINUTES = 30;
+const TIMELINE_ROWS = ((H1 - H0) * 60) / SLOT_MINUTES;
 const toM = (t) => { const [h, m] = String(t || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
+function timelineSlots(day) {
+  return Array.from({ length: TIMELINE_ROWS }, (_, i) => {
+    const startMinutes = H0 * 60 + i * SLOT_MINUTES; const h = Math.floor(startMinutes / 60); const minute = startMinutes % 60;
+    const start = `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`; const endMinutes = startMinutes + SLOT_MINUTES;
+    const end = endMinutes >= H1 * 60 ? '23:59' : `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
+    const timeLabel = minute ? `${C.hourLabel(h)}30` : C.hourLabel(h);
+    const preset = esc(JSON.stringify({ day, cat: 'sky', data: { start, end } }));
+    return `<div class="tl-h${minute ? ' tl-half' : ''}"><span>${timeLabel}</span><button class="tl-slot" data-action="add" data-kind="block" data-preset="${preset}" aria-label="Planejar algo às ${timeLabel}"></button></div>`;
+  }).join('');
+}
 export function tabDay() {
   const d = S.ui.pday || today(); const x = parseDay(d); const isToday = d === today(); const past = d < today();
   const bl = blocksOn(d); const ts = tasksDue(d); const open = sortBy(ts.filter(t => t.status !== 'done'), t => (C.PRIO[t.cat] ?? 1) * 1000 - C.carried(t)); const top = open.slice(0, 3); const rest = [...open.slice(3), ...ts.filter(t => t.status === 'done')];
@@ -59,7 +70,7 @@ export function tabDay() {
     ${label(`Semana ${C.isoWeek(d)}`, 'blue')}${label(`T${C.quarterOf(d)}`, 'butter')}${isToday ? label('Hoje', 'pink') : `<button class="btn sm ghost" data-action="day-nav" data-v="0">Hoje</button>`}<label class="right sr-only" for="day-pick">Ir para uma data</label><input class="input sm day-pick right" id="day-pick" type="date" value="${d}" data-bind="day-pick"></div>
   <div class="day-grid">
     <section class="timeline card day-tl">${pin()}<header class="card-head"><h2>A <em>agenda</em></h2>${addBtn('block', 'Bloco de tempo', { cls: 'sm ghost', preset: { day: d, cat: 'sky', data: { start: '09:00', end: '10:00' } } })}</header>
-      <div class="tl" style="--rows:${H1 - H0}">${Array.from({ length: H1 - H0 }, (_, i) => { const h = H0 + i; const hh = `${String(h).padStart(2, '0')}:00`; return `<div class="tl-h"><span>${C.hourLabel(h)}</span><button class="tl-slot" data-action="add" data-kind="block" data-preset="${esc(JSON.stringify({ day: d, cat: 'sky', data: { start: hh, end: `${String(Math.min(23, h + 1)).padStart(2, '0')}:00` } }))}" aria-label="Planejar algo às ${C.hourLabel(h)}"></button></div>`; }).join('')}
+      <div class="tl" style="--rows:${TIMELINE_ROWS}">${timelineSlots(d)}
       ${bl.map(b => { const s = Math.max(H0 * 60, toM(dget(b, 'start'))), e = Math.min(H1 * 60, Math.max(s + 20, toM(dget(b, 'end')))); const color = blockColor(b); return `<button class="tl-b tn-${esc(b.cat || 'sky')}" style="${color ? `--block-color:${color};` : ''}top:${((s - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%;height:${((e - s) / ((H1 - H0) * 60) * 100).toFixed(2)}%" data-action="edit" data-id="${esc(b.id)}"><b>${dget(b, 'meet') ? `${icon('users')} ` : ''}${esc(b.title)}</b><small>${esc(hhmm(dget(b, 'start')))}–${esc(hhmm(dget(b, 'end')))}</small></button>`; }).join('')}
       ${isToday && nowM >= H0 * 60 && nowM <= H1 * 60 ? `<i class="tl-now" style="top:${((nowM - H0 * 60) / ((H1 - H0) * 60) * 100).toFixed(2)}%" aria-hidden="true"></i>` : ''}</div>
       <p class="small muted">Toque em qualquer horário para planejar algo.</p></section>
@@ -70,9 +81,9 @@ export function tabDay() {
       ${d <= today() ? card('Hábitos e <em>humor</em>', `<ul class="habits">${hs.map(h => `<li><button class="hab ${hd.has(h.id) ? 'on' : ''}" data-action="habit-tick" data-id="${esc(h.id)}" data-day="${d}" aria-pressed="${hd.has(h.id)}">${icon(dget(h, 'icon') || 'sparkle')}<span>${esc(h.title)}</span></button></li>`).join('') || '<li class="small muted">Nenhum hábito ainda.</li>'}</ul><div class="mood-today"><span class="small muted">Humor:</span>${faces('mood-set', C.moodOn(d), `data-day="${d}"`)}</div>`) : ''}
       ${card('Mais <em>hoje</em>', `<ul class="also">${[
         ...kd.map(k => `<li><a href="${k.href}">${icon(k.ic)} ${esc(k.t)}</a></li>`),
-        ...meals.map(([l, r]) => `<li><a href="#/kitchen?tab=plan">${icon('chef')} ${esc(l)}: ${esc(r.title)}</a></li>`),
-        ...chores.map(c => `<li><a href="#/house">${icon('broom')} ${esc(c.title)}</a></li>`),
-        ...plants.map(p => `<li><a href="#/house?tab=plants">${icon('drop')} Water the ${esc(p.title.toLowerCase())}</a></li>`),
+        ...meals.map(([l, r]) => `<li><a href="#/home">${icon('chef')} ${esc(l)}: ${esc(r.title)}</a></li>`),
+        ...chores.map(c => `<li><a href="#/home">${icon('broom')} ${esc(c.title)}</a></li>`),
+        ...plants.map(p => `<li><a href="#/home">${icon('drop')} Water the ${esc(p.title.toLowerCase())}</a></li>`),
       ].join('') || '<li class="small muted">Nada mais está marcado para este dia.</li>'}</ul>`, { tape: 'blue' })}
       ${card('Notas', `<label class="sr-only" for="day-note">Notas do dia</label><textarea class="input day-note" id="day-note" rows="5" data-bind="day-note" data-day="${d}" placeholder="Ideias, lembretes, como foi o dia…">${esc((D().dayNotes || {})[d] || '')}</textarea>`, { cls: 'lined' })}
     </div></div>`;
