@@ -5,6 +5,7 @@
 import { S, esc, icon, ACTIONS, FORMS, BINDS, rerender, fail, toast, today, addDays, parseDay, DAYS, DAYS_LONG, MONTHS, fmtShort, fmtLong, daysBetween, plural, hhmm, moneyWhole, round2 } from '../core.js';
 import { items, byId, save, patch, dget, sortBy, addBtn, LIFE_AREAS, QUARTERS, PLAN_CATEGORIES, blockColor } from '../kinds.js';
 import { photosOf, PICK_HOOKS } from '../photos.js';
+import { ring } from '../ui.js';
 import { GROUPS } from './lightbox.js';
 import { D, saveData, card, hubHead, folderTabs, pickTab, emptyNote, photoDrop, masonry, itemsFromFiles, label, meter, sparkleWin, bigWin, seg, pin, twoCol, amt } from './common.js';
 import { taskRow } from './home.js';
@@ -81,21 +82,21 @@ function tabWeek() {
   <div class="wk-grid">${days.map(d => {
     const x = parseDay(d); const l = dayTasks(d); const open = l.filter(task => task.status !== 'done'); const done = l.filter(task => task.status === 'done');
     const pending = open.length; const total = l.length; const pctDone = total ? Math.round(done.length / total * 100) : 0;
+    const dayTone = ['c5', 'c1', 'c2', 'c4', 'c3', 'c1', 'c2'][x.getDay()];
     const blocks = dayBlocks(d); const priorities = l.filter(task => dget(task, 'weekPriority'));
     const dailyTasks = l.filter(task => !dget(task, 'weekPriority'));
     const dailyDone = dailyTasks.filter(task => task.status === 'done').length;
-    return `<section class="wk-day ${d === t ? 'today' : ''} ${d < t ? 'past' : ''}">
-      <header class="week-day-head"><div><b>${x.getDate()}</b><strong>${esc(DAYS_LONG[x.getDay()])}</strong></div>${d === t ? '<span class="week-today">Hoje</span>' : ''}</header>
-      <div class="week-day-date">${esc(fmtLong(d))}</div>
+    return `<section class="wk-day ${d === t ? 'today' : ''} ${d < t ? 'past' : ''}" style="--week-tone:var(--${dayTone})">
+      <header class="week-day-head"><div><div class="week-day-heading"><b>${x.getDate()}</b><strong>${esc(DAYS_LONG[x.getDay()])}</strong></div><small class="week-day-date">${esc(fmtLong(d))}</small></div>${d === t ? '<span class="week-today">Hoje</span>' : ''}</header>
       <section class="week-day-section week-progress">
         <h3>Progresso diário</h3>
-        <div class="week-progress-main"><strong>${pctDone}%</strong><dl><div><dt>Concluídas</dt><dd>${done.length}</dd></div><div><dt>Pendentes</dt><dd>${pending}</dd></div><div><dt>Total</dt><dd>${total}</dd></div></dl></div>
+        <div class="week-progress-main">${ring(pctDone / 100, { tone: dayTone, text: `${pctDone}%`, label: `Progresso diário: ${pctDone}%` })}<dl><div class="week-stat-done"><dt>Concluídas</dt><dd>${done.length}</dd></div><div class="week-stat-pending"><dt>Pendentes</dt><dd>${pending}</dd></div><div class="week-stat-total"><dt>Total</dt><dd>${total}</dd></div></dl></div>
       </section>
       <section class="week-day-section"><h3>Prioridades</h3>${priorities.length ? `<ul class="tasks week-priorities">${priorities.map(task => taskRow(task, { weekPriority: true })).join('')}</ul>` : '<p>Nenhuma prioridade.</p>'}</section>
       <section class="week-day-section week-tasks"><div class="week-section-title"><h3>Tarefas do dia</h3><small>${dailyDone}/${dailyTasks.length}</small></div>${dailyTasks.length ? `<ul class="tasks">${dailyTasks.map(task => taskRow(task, { weekPriority: true })).join('')}</ul>` : '<p>Nenhuma tarefa.</p>'}
         <form class="week-task-form" data-form="week-task" data-day="${d}" autocomplete="off"><label class="sr-only" for="week-task-${d}">Adicionar tarefa</label><input class="input" id="week-task-${d}" name="task" maxlength="300" placeholder="Adicionar tarefa..."><button class="btn square" aria-label="Adicionar tarefa">${icon('plus')}</button></form>
       </section>
-      <section class="week-day-section week-agenda"><h3>Agenda</h3>${blocks.length ? `<ul class="week-blocks">${blocks.map(block => { const color = blockColor(block); const start = dget(block, 'start'); const end = dget(block, 'end'); const time = start || end ? `${start ? hhmm(start) : '—'}–${end ? hhmm(end) : '—'}` : ''; const category = PLAN_CATEGORIES[dget(block, 'category')] || 'Sem categoria'; return `<li ${color ? `style="--block-color:${color}"` : ''}><button class="link-plain" data-action="edit" data-id="${esc(block.id)}">${time ? `${esc(time)} · ` : ''}${esc(block.title)}</button><small>Categoria: ${esc(category)}</small></li>`; }).join('')}</ul>` : '<p>Nenhum compromisso.</p>'}<button class="week-event" data-action="add" data-kind="block" data-preset="${esc(JSON.stringify({ day: d, cat: 'sky', data: { start: '09:00', end: '10:00' } }))}"><strong>Evento</strong>${icon('calendar')}</button></section>
+      <section class="week-day-section week-agenda"><h3>Agenda</h3>${blocks.length ? `<ul class="week-blocks">${blocks.map(block => { const color = blockColor(block); const start = dget(block, 'start'); const end = dget(block, 'end'); const time = start || end ? `${start ? hhmm(start) : '—'}–${end ? hhmm(end) : '—'}` : 'Horário flexível'; const category = PLAN_CATEGORIES[dget(block, 'category')] || 'Sem categoria'; return `<li ${color ? `style="--block-color:${color}"` : ''}><div class="week-block-meta"><span class="week-block-time">${esc(time)}</span><span class="week-block-category">${esc(category)}</span></div><button class="link-plain" data-action="edit" data-id="${esc(block.id)}">${esc(block.title)}</button></li>`; }).join('')}</ul>` : '<p>Nenhum compromisso.</p>'}<button type="button" class="week-event" data-action="add" data-kind="block" data-preset="${esc(JSON.stringify({ day: d, cat: 'sky', data: { start: '09:00', end: '10:00' } }))}">${icon('plus')}<span>Adicionar à agenda</span></button></section>
     </section>`;
   }).join('')}</div>`;
 }
