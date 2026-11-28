@@ -12,6 +12,11 @@ import { calendarIcs } from '../calendar-export.mjs';
 const tog = (key, on, label, sub, kind = 'data') => `<div class="set-row"><span class="sr-t"><b>${esc(label)}</b><small>${esc(sub)}</small></span><label class="tog-wrap"><span class="sr-only">${esc(label)}</span><input type="checkbox" class="tog" data-bind="set-tog" data-k="${key}" data-kind="${kind}" ${on ? 'checked' : ''}></label></div>`;
 const THEME_PT = {
   custom: ['Personalizada', 'Escolha todas as cores'],
+  brilho: ['Brilho', 'Creme, rosa, pervinca, laranja e manteiga'],
+  chiclete: ['Chiclete', 'Papel claro com um toque rosa-chiclete'],
+  vinca: ['Vinca', 'Azul-lilás, manteiga e blush'],
+  sorvete: ['Sorvete', 'Pêssego, menta e laranja ensolarada'],
+  noite: ['Noite', 'Modo noturno com rosa neon e lilás'],
   powder: ['Pó e Peônia', 'Azul bebê e rosa peônia'],
   lilac: ['Carta Lilás', 'Lavanda, manteiga e hortelã'],
   matcha: ['Matcha e Leite', 'Sálvia, aveia e damasco'],
@@ -78,7 +83,7 @@ export function viewSettings() {
   return `${hubHead(0, 'Personalize', 'Suas <em>Configurações</em>', 'A aparência, os dados básicos, seus hábitos e suas informações.')}
   <div class="set-cols"><div class="set-col">
     <section class="card box"><h2>Aparência</h2>
-      <div class="set-row"><span class="sr-t"><b>Paleta</b><small>Escolha entre opções suaves e neutras, todas claras.</small></span></div>${[['soft', 'Suaves'], ['neutral', 'Neutras']].map(([g, gl]) => `<h4 class="pal-g">${gl}</h4><div class="palettes" role="group" aria-label="Paletas ${gl.toLowerCase()}">${THEMES.filter(t => t.group === g).map(t => { const pt = THEME_PT[t.id] || [t.name, t.note]; return `<button class="pal" data-action="theme" data-v="${t.id}" aria-pressed="${themeId() === t.id}"><span class="pal-sw">${t.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span><b>${esc(pt[0])}</b><small>${esc(pt[1])}</small></button>`; }).join('')}</div>`).join('')}
+      <div class="set-row"><span class="sr-t"><b>Paleta</b><small>Escolha entre opções suaves, neutras e noturnas.</small></span></div>${[['soft', 'Suaves'], ['neutral', 'Neutras'], ['dark', 'Modo noturno']].map(([g, gl]) => `<h4 class="pal-g">${gl}</h4><div class="palettes" role="group" aria-label="Paletas ${gl.toLowerCase()}">${THEMES.filter(t => t.group === g).map(t => { const pt = THEME_PT[t.id] || [t.name, t.note]; return `<button class="pal" data-action="theme" data-v="${t.id}" aria-pressed="${themeId() === t.id}"><span class="pal-sw">${t.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span><b>${esc(pt[0])}</b><small>${esc(pt[1])}</small></button>`; }).join('')}</div>`).join('')}
       <details class="custom-colors" ${themeId() === 'custom' ? 'open' : ''}>
         <summary><b>Cores personalizadas</b><small>Edite os códigos hexadecimal</small></summary>
         <form data-form="custom-theme" class="custom-color-form">
@@ -108,7 +113,7 @@ export function viewSettings() {
         ${calendarFeedback ? `<p class="small" role="status">${esc(calendarFeedback)}</p>` : ''}
         <p class="small muted">A integração usa a agenda principal. A conexão segura e a sincronização automática só funcionarão depois que o OAuth do Google e a função do Supabase forem configurados.</p>` : `<p class="small muted">A sincronização com Google Agenda exige uma conta HUB conectada, não está disponível na prévia.</p>`}
       <button class="btn sm ghost" data-action="calendar-export">${icon('download')} Exportar agenda (.ics)</button></section>
-    <section class="card box"><header class="box-head"><h2>Hábitos diários</h2>${addBtn('habit', 'Adicionar hábito', { cls: 'sm ghost', preset: { data: { icon: 'sparkle' } } })}</header><p class="small muted">Marcados no Início, contados no mapa de hábitos e no Arquivo de Memórias.</p>
+    <section class="card box habits-settings-card"><header class="box-head"><h2>Hábitos diários</h2>${addBtn('habit', 'Adicionar hábito', { cls: 'sm ghost', preset: { data: { icon: 'sparkle' } } })}</header><p class="small muted">Marcados no Início, contados no mapa de hábitos e no Arquivo de Memórias.</p>
       <ul class="rows">${habits().map(h => `<li><span class="sk-ic">${icon(dget(h, 'icon') || 'sparkle')}</span><span class="r-t"><button class="link-plain" data-action="edit" data-id="${esc(h.id)}"><b>${esc(h.title)}</b></button><small>${habitStreak(h.id)} dias seguidos</small></span></li>`).join('') || '<li class="muted small">Nenhum hábito ainda.</li>'}</ul></section>
     <section class="card box"><h2>Seus dados</h2>
       <div class="inline"><button class="btn" data-action="backup">${icon('download')} Exportar tudo</button><button class="btn" data-action="csv" data-v="money">${icon('download')} Dinheiro (.csv)</button><button class="btn" data-action="csv" data-v="books">${icon('download')} Livros (.csv)</button><button class="btn" data-action="photos-zip">${icon('download')} Fotos (.zip)</button></div>

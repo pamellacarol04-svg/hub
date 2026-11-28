@@ -15,11 +15,11 @@ import { VIEWS_LIFE } from './views/life.js';
 import { VIEWS_WORLD } from './views/world.js';
 import { VIEWS_VAULT } from './views/mindvault.js';
 import { openQuick, capture, badge } from './views/common.js';
-import { HUBS, HUB_TABS } from './hubs.js';
+import { HUBS } from './hubs.js';
 import { processRecurringTransactions } from './hub.js';
 
 export { HUBS };
-const VIEWS = { settings: viewSettings, guide: viewGuide, home: (r) => VIEWS_HOME.home(r, HUBS), ...VIEWS_VISION, ...VIEWS_WORK, ...VIEWS_GROWTH, ...VIEWS_LIFE, ...VIEWS_WORLD, ...VIEWS_VAULT };
+const VIEWS = { settings: viewSettings, guide: viewGuide, home: (r) => VIEWS_HOME.home(r), ...VIEWS_VISION, ...VIEWS_WORK, ...VIEWS_GROWTH, ...VIEWS_LIFE, ...VIEWS_WORLD, ...VIEWS_VAULT };
 const pageLabel = (r) => (HUBS.find(x => x[0] === r) || [, { settings: 'Configurações', guide: 'Guia' }[r] || APP])[1];
 const known = (n) => Boolean(VIEWS[n]);
 
@@ -62,21 +62,12 @@ function setSide(collapsed, store = true) {
   const side = $('#side'); if (side) side.inert = collapsed && matchMedia('(min-width: 1101px)').matches;
 }
 ACTIONS['side-toggle'] = () => { const c = !document.body.classList.contains('side-off'); setSide(c); (c ? $('.side-open') : $('.side-toggle'))?.focus(); };
-/** The sidebar: the logo, a capture box (it lands in the inbox on Home), and every hub with its pages tucked under it.
- * A hub opens when you're in it; any others you open stay open until you close them. */
-const openP = new Set();
-document.addEventListener('click', (e) => { const sm = e.target.closest?.('details.pillar > summary'); if (!sm) return; const d = sm.parentElement; d.open ? openP.delete(d.dataset.id) : openP.add(d.dataset.id); });
+/** The sidebar: the logo, a capture box (it lands in the inbox on Home), and each hub. */
 function sidebar(cur) {
-  const r = route();
   return `<aside class="side" id="side" aria-label="Hubs">
-    <div class="side-top"><a class="side-brand" href="#/home" aria-label="${esc(APP)}: início">${LOGO}<span><b>${esc(APP)}</b><small>${esc(firstName() ? `cérebro externo de ${firstName()}` : 'seu cérebro externo')}</small></span></a><button class="side-toggle" data-action="side-toggle" aria-controls="side" aria-expanded="true" aria-label="Recolher barra lateral" title="Recolher barra lateral (Ctrl + \\)">${icon('sidebar')}</button></div>
+    <div class="side-top"><a class="side-brand" href="#/home" aria-label="${esc(APP)}: início"><b>${esc(APP)}</b>${LOGO}</a><small class="side-tag">${esc(firstName() ? `cérebro externo de ${firstName()}` : 'seu cérebro externo')}</small><button class="side-toggle" data-action="side-toggle" aria-controls="side" aria-expanded="true" aria-label="Recolher barra lateral" title="Recolher barra lateral (Ctrl + \\)">${icon('sidebar')}</button></div>
     <form class="side-dump dumpbox" data-form="side-dump" autocomplete="off"><label class="sr-only" for="side-dump">Capturar na caixa de entrada</label><input id="side-dump" name="t" maxlength="300" placeholder="Despeje aqui… (pressione D)"><button class="sd-go" aria-label="Adicionar à caixa de entrada">${icon('plus')}</button></form>
-    <nav class="side-nav" aria-label="Hubs">${HUBS.map(([id, label, ic]) => {
-      if (id === 'home') return `<a href="#/home" class="side-link" ${cur === 'home' ? 'aria-current="page"' : ''}>${icon(ic)}<span>${esc(label)}</span></a>`;
-      const tabs = HUB_TABS[id] || []; const here = cur === id; const t = here ? (tabs.some(x => x[0] === r.tab) ? r.tab : tabs[0]?.[0]) : null;
-      return `<details class="pillar" data-id="${id}" ${here || openP.has(id) ? 'open' : ''}><summary ${here ? 'aria-current="true"' : ''}>${icon(ic)}<span>${esc(label)}</span>${icon('down', 'chev')}</summary>
-        <div class="subs">${tabs.map(([k, l]) => `<a href="#/${id}?tab=${k}" ${t === k ? 'aria-current="page"' : ''}>${esc(l)}</a>`).join('')}</div></details>`;
-    }).join('')}</nav>
+    <nav class="side-nav" aria-label="Hubs">${HUBS.map(([id, label, ic]) => `<a href="#/${id}" class="side-link" ${cur === id ? 'aria-current="page"' : ''}>${icon(ic)}<span>${esc(label)}</span></a>`).join('')}</nav>
     <div class="side-foot"><a href="#/guide" class="side-link" ${cur === 'guide' ? 'aria-current="page"' : ''}>${icon('tutorial')}<span>Guia</span></a><a href="#/settings" class="side-link" ${cur === 'settings' ? 'aria-current="page"' : ''}>${icon('settings')}<span>Configurações</span></a></div>
   </aside>`;
 }

@@ -1,6 +1,5 @@
 // Home: the front page, in the atelier style. The grand vision board in a pinstriped frame with the
-// year's word, a big greeting with what's on now and next, every hub as a coloured tile with the live
-// number that matters most there, the four planners as file folders, Today's focus (meetings, the
+// year's word, a big greeting with what's on now and next, the four planners as file folders, Today's focus (meetings, the
 // top three, habits), the inbox, the numbers (money in vs out, task velocity, mood)
 // and, down the side, money this month, what's coming up, the month on one card, the month's vibe
 // photo and an evergreen summary of the day, week, quarter and year.
@@ -9,7 +8,7 @@ import { items, byId, save, patch, remove, dget, sortBy, addBtn, PRIORITIES, LIF
 import { photosOf, PICK_HOOKS, addPhotos, img } from '../photos.js';
 import { donut, lineChart, groupBars } from '../ui.js';
 import { GROUPS } from './lightbox.js';
-import { D, saveData, card, hubHead, badge, hubTone, photoDrop, polaroid, itemsFromFiles, sparkleWin, emptyNote, capture, faces, FACE_WORDS, meter, amt } from './common.js';
+import { D, saveData, card, hubHead, photoDrop, polaroid, itemsFromFiles, sparkleWin, emptyNote, capture, faces, FACE_WORDS, meter, amt } from './common.js';
 import * as C from '../hub.js';
 
 // ---------------------------------------------------------------------
@@ -32,10 +31,6 @@ function calWidget() {
   const d = parseDay(today()); const y = d.getFullYear(), m = d.getMonth(); const first = (new Date(y, m, 1).getDay() + 6) % 7; const n = new Date(y, m + 1, 0).getDate();
   const cells = [...Array(first).fill(''), ...Array.from({ length: n }, (_, i) => i + 1)];
   return `<a class="w-cal card" href="#/plan?tab=day" aria-label="${esc(MONTHS_LONG[m])}: abrir o planejador diário"><span class="label">Este mês</span><b class="wc-m">${esc(MONTHS_LONG[m])} <em>${y}</em></b><div class="wc-g">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(x => `<i>${x}</i>`).join('')}${cells.map(c => `<span class="${c === d.getDate() ? 'on' : ''}">${c}</span>`).join('')}</div></a>`;
-}
-/** What's coming up: the nudges, as a short list with a sparkle each. */
-function nudgesCard(nudges) {
-  return card(`Próximos <em>eventos</em>`, nudges.length ? `<ul class="nudge-list">${nudges.map(n => `<li>${sparkle()}<span>${n}</span></li>`).join('')}</ul>` : `<p class="small muted">Nada urgente por enquanto. Capture ideias e organize depois.</p>`, { kicker: 'Vale saber', cls: 'nudge-card' });
 }
 /** Money this month: in, out and what's left, with the last few things spent. */
 function moneyCard() {
@@ -201,45 +196,14 @@ export function inbox(opts = {}) {
 // The numbers
 // ---------------------------------------------------------------------
 function metrics() {
-  const ms = C.monthsBack(6); const v = C.velocity(); const days = C.lastDays(30); const moods = days.map(C.moodOn);
+  const ms = C.monthsBack(6); const days = C.lastDays(30); const moods = days.map(C.moodOn);
   const logged = moods.filter(Boolean); const avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : null;
   return `<section class="metrics" aria-label="Os números"><header class="sec-head"><span class="label">Calculado com Tudo o que Você Registra</span><h2>Os <em>Números</em></h2></header>
     <div class="metric-grid">
       ${card(`Pulso <em>financeiro</em>`, groupBars(ms.map(m => MONTHS[Number(m.slice(5)) - 1]), [{ name: 'Entradas', tone: 'c4', values: ms.map(C.incomeIn) }, { name: 'Saídas', tone: 'c2', values: ms.map(C.spentIn) }], { fmt: (x) => moneyWhole(x), label: 'Entradas e saídas nos últimos seis meses', h: 210 }), { cls: 'm-money', link: `<a class="small" href="#/money">Economizado este mês: ${amt(C.incomeIn() - C.spentIn())}</a>` })}
-      ${card(`Velocidade das <em>tarefas</em>`, `${donut([{ label: 'Concluídas', value: v.done, tone: 'c1' }, { label: 'Pendentes', value: v.open, tone: 'c5' }], { center: `${Math.round(v.pct * 100)}%`, sub: 'esta semana', label: 'Tarefas concluídas nesta semana' })}<p class="small muted">${v.done} de ${plural(v.total, 'tarefa')} nesta semana, incluindo tarefas transferidas.</p>`, { cls: 'm-vel' })}
       ${card(`Tendência de <em>humor</em>`, `${lineChart(days.map(d => `${parseDay(d).getDate()}`), [{ name: 'Humor', tone: 'c2', values: moods }], { min: 1, max: 5, ticks: [1, 3, 5], fmt: (x) => FACE_WORDS[Math.round(x)] || '', label: 'Humor nos últimos 30 dias', h: 190 })}
         <div class="mood-today"><span class="small muted">Hoje:</span>${faces('mood-set', C.moodOn())}</div><p class="small muted">${avg ? `Média de 30 dias: ${FACE_WORDS[Math.round(avg)].toLowerCase()} (${avg.toFixed(1)} de 5).` : 'Registre um humor para iniciar o gráfico.'}</p>`, { cls: 'm-mood' })}
     </div></section>`;
-}
-
-// ---------------------------------------------------------------------
-// Every hub's live number, shown under its folder on Home
-// ---------------------------------------------------------------------
-export function hubStat(id) {
-  const t = today(); const r = C.rollup();
-  switch (id) {
-    case 'vision': return `${plural(items('vpin').length, 'foto')} no quadro`;
-    case 'plan': { const v = C.velocity(); return `${v.done}/${v.total} tarefas nesta semana`; }
-    case 'money': return `Patrimônio ${moneyWhole(C.netWorthNow())}`;
-    case 'career': return `${plural(items('project').filter(p => p.status !== 'done').length, 'projeto ativo')}`;
-    case 'learn': return `${plural(C.dueCards().length, 'cartão')} para revisar`;
-    case 'health': return `${plural(r.workouts, 'treino')} este ano`;
-    case 'mind': { const m = C.moodOn(); return m ? `Sentimento: ${FACE_WORDS[m].toLowerCase()}` : 'Como você está, de verdade?'; }
-    case 'kitchen': return `${plural(Object.values(C.mealPlan()).filter(Boolean).length, 'refeição')} planejada`;
-    case 'house': return `${plural(items('plant').filter(p => C.plantNext(p) <= t).length, 'planta')} precisa de água`;
-    case 'travel': { const n = C.nextTrip(); return n ? `${n.title}: ${Math.max(0, daysBetween(t, n.day))} dias` : `${plural(r.countries, 'país')} visitado`; }
-    case 'media': return `${plural(items('book').filter(b => b.status === 'reading').length, 'livro')} em andamento`;
-    case 'social': { const o = C.occasions()[0]; return o ? `${o.p.title}: ${o.label.toLowerCase()} em ${o.inDays} d` : 'Em quem você está pensando?'; }
-    case 'knowledge': return `${plural(items('clip').filter(c => c.status === 'unread').length, 'item')} para ler`;
-    case 'focus': return `${C.deepMins(t)} min de trabalho profundo hoje`;
-    case 'archive': return `${items('reel').filter(x => String(dget(x, 'month') || '').startsWith(String(C.year()))).length}/12 destaques`;
-    default: return '';
-  }
-}
-/** Every hub as a coloured tile with its badge, its name and its live number. */
-export function folders(HUBS) {
-  return `<section class="hubs-sec"><header class="sec-head"><span class="label">Quinze Hubs, Um Sistema</span><h2>Seus <em>Hubs</em></h2></header>
-    <nav class="folders" aria-label="Seus hubs">${HUBS.filter(h => h[0] !== 'home').map(([id, l, , line], i) => `<a class="folder pillar-tile ${hubTone(id)}" href="#/${id}">${badge(id)}<span class="fd-txt"><span class="fd-no">Nº ${String(i + 1).padStart(2, '0')}</span><b class="fd-name">${esc(l)}</b><small class="fd-stat">${esc(hubStat(id))}</small></span></a>`).join('')}</nav></section>`;
 }
 
 // ---------------------------------------------------------------------
@@ -264,21 +228,13 @@ function greetRow() {
     <div class="nownext"><div><span class="label">Agora</span><b>${cur ? esc(cur.t) : 'Tempo livre'}</b></div><div><span class="label">Depois</span><b>${nxt ? esc(nxt.t) : 'Nada marcado'}</b>${nxt ? `<small>${esc(hhmm(nxt.at))}</small>` : ''}</div></div></div>`;
 }
 
-function viewHome(r, HUBS) {
-  const nt = C.nextTrip(); const occ = C.occasions()[0]; const letter = items('letter').find(l => l.status !== 'opened' && dget(l, 'open') <= today());
-  const nudges = [
-    letter ? `<a href="#/archive?tab=letters">A letter from past you is ready to open.</a>` : '',
-    occ && occ.inDays <= 14 ? `<a href="#/social">${esc(occ.p.title)}’s ${occ.label.toLowerCase()} is ${occ.inDays === 0 ? 'today' : `in ${plural(occ.inDays, 'day')}`}.</a>` : '',
-    C.dueCards().length ? `<a href="#/learn?tab=cards">${plural(C.dueCards().length, 'cartão', 'cartões')} para revisar.</a>` : '',
-    nt && daysBetween(today(), nt.day) <= 30 && daysBetween(today(), nt.day) >= 0 ? `<a href="#/travel">${esc(nt.title)} in ${plural(daysBetween(today(), nt.day), 'day')}.</a>` : '',
-  ].filter(Boolean);
+function viewHome(r) {
   return `${visionBand()}${greetRow()}
     <div class="home-acts"><button class="btn sm solid" data-action="quick" data-v="note">${icon('inbox')} Capturar</button><button class="btn sm" data-action="quick" data-v="task">${icon('checkCircle')} Tarefa</button><button class="btn sm" data-action="quick" data-v="block">${icon('clock')} Reunião</button><button class="btn sm" data-action="quick" data-v="txn">${icon('wallet')} Dinheiro</button></div>
     <div class="home-grid">
       <div class="hg-main">${focus()}${plannerCards()}${inbox()}</div>
-      <aside class="hg-right">${agendaClock()}${moneyCard()}${nudgesCard(nudges)}${calWidget()}</aside>
+      <aside class="hg-right">${agendaClock()}${moneyCard()}${calWidget()}</aside>
     </div>
-    ${folders(HUBS)}
     <div class="home-grid low"><div class="hg-main">${metrics()}</div><aside class="hg-right">${summary()}</aside></div>`;
 }
 export const VIEWS_HOME = { home: viewHome };

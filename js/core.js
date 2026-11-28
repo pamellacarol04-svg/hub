@@ -83,11 +83,16 @@ export const S = {
 export const firstName = () => (S.settings.display_name || '').split(' ')[0];
 
 // ---------------------------------------------------------------------
-// Looks: light palettes, soft and neutral. Text size, reduce motion and
+// Looks: soft, neutral and dark palettes. Text size, reduce motion and
 // "hide exact balances" live in settings too.
 // ---------------------------------------------------------------------
 export const THEMES = [
   { id: 'custom', group: 'soft', name: 'Personalizada', note: 'Escolha todas as cores', sw: ['#FFFDF8', '#F6F0E5', '#A86D8C', '#DCCB9D', '#342B25'] },
+  { id: 'brilho', group: 'soft', name: 'Brilho', note: 'Papel quadriculado creme, rosa, pervinca, laranja e manteiga', sw: ['#FCF8F3', '#FF7EB5', '#9297F2', '#FF941F', '#FFE27A'] },
+  { id: 'chiclete', group: 'soft', name: 'Chiclete', note: 'Papel claro com um toque rosa-chiclete', sw: ['#FCF8F3', '#FF79B4', '#F7EAF1', '#D5ED7A', '#241D28'] },
+  { id: 'vinca', group: 'soft', name: 'Vinca', note: 'Azul-lilás suave com toques de manteiga e blush', sw: ['#F5F5FF', '#C3C7FA', '#FFF0A3', '#F4C9DA', '#242338'] },
+  { id: 'sorvete', group: 'soft', name: 'Sorvete', note: 'Pêssego, menta e laranja ensolarada', sw: ['#FFF8F0', '#FFC9A7', '#BCE4D4', '#FF9B38', '#2D241F'] },
+  { id: 'noite', group: 'dark', name: 'Noite', note: 'Modo noturno: tinta com rosa neon e lilás', dark: true, sw: ['#18131F', '#282130', '#FE55A4', '#BEA1FF', '#ECE2F5'] },
   { id: 'powder', group: 'soft', name: 'Pó e Peônia', note: 'Azul bebê e rosa peônia', sw: ['#FCF8F3', '#BFDCF5', '#F9C9DF', '#F6E3A1', '#1F1C2C'] },
   { id: 'lilac', group: 'soft', name: 'Carta Lilás', note: 'Lavanda, manteiga e hortelã', sw: ['#FBF8FC', '#D9CCF4', '#F8E7A6', '#C7EBDA', '#26213A'] },
   { id: 'matcha', group: 'soft', name: 'Matcha e Leite', note: 'Sálvia, aveia e damasco', sw: ['#F8F6EE', '#C9DDBF', '#F6D2B8', '#EFE4C7', '#22301F'] },

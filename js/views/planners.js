@@ -85,7 +85,7 @@ export function tabDay() {
         ...chores.map(c => `<li><a href="#/home">${icon('broom')} ${esc(c.title)}</a></li>`),
         ...plants.map(p => `<li><a href="#/home">${icon('drop')} Water the ${esc(p.title.toLowerCase())}</a></li>`),
       ].join('') || '<li class="small muted">Nada mais está marcado para este dia.</li>'}</ul>`, { tape: 'blue' })}
-      ${card('Notas', `<label class="sr-only" for="day-note">Notas do dia</label><textarea class="input day-note" id="day-note" rows="5" data-bind="day-note" data-day="${d}" placeholder="Ideias, lembretes, como foi o dia…">${esc((D().dayNotes || {})[d] || '')}</textarea>`, { cls: 'lined' })}
+      ${card('Notas', `<label class="sr-only" for="day-note">Notas do dia</label><textarea class="input day-note" id="day-note" rows="5" data-bind="day-note" data-day="${d}" placeholder="Ideias, lembretes, como foi o dia…">${esc((D().dayNotes || {})[d] || '')}</textarea>`, { cls: 'lined day-notes-card' })}
     </div></div>`;
 }
 

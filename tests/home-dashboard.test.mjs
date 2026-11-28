@@ -16,6 +16,22 @@ test('home dashboard no longer renders the habit heatmap card', () => {
   assert.match(html, /Tendência de <em>humor<\/em>/);
 });
 
+test('home dashboard omits the hub tiles section', () => {
+  const html = VIEWS_HOME.home({});
+  assert.doesNotMatch(html, /class="hubs-sec"|class="folders"/);
+});
+
+test('home dashboard omits the upcoming events card', () => {
+  const html = VIEWS_HOME.home({});
+  assert.doesNotMatch(html, /nudge-card|nudge-list|Próximos <em>eventos<\/em>/);
+});
+
+test('home dashboard omits the task velocity card', () => {
+  const html = VIEWS_HOME.home({});
+  assert.doesNotMatch(html, /m-vel|Velocidade das <em>tarefas<\/em>/);
+  assert.match(html, /m-mood/);
+});
+
 test('home dashboard shows the larger 24-hour clock directly above the monthly money card', () => {
   const originalItems = S.items;
   S.items = [{
