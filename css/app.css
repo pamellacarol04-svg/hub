@@ -1299,7 +1299,7 @@ main.hub > .ftabs { order: -1; }
 .day-clock-svg { display: block; width: min(100%, 600px); height: auto; overflow: visible; }
 .day-clock-track { fill: none; stroke: color-mix(in srgb, var(--t1) 60%, var(--surface)); stroke-width: 10; }
 .day-clock-dot { fill: color-mix(in srgb, var(--hair) 92%, var(--ink)); transition: fill .2s; }
-.day-clock-dot.is-past { fill: color-mix(in srgb, var(--t2) 62%, var(--surface)); }
+.day-clock-dot.is-past { fill: color-mix(in srgb, var(--t2) 75%, var(--surface)); }
 .day-clock-event-arc { fill: none; stroke: var(--clock-event-color); stroke-width: 10; stroke-linecap: round; opacity: .8; }
 .day-clock-event-marker > circle:first-of-type { fill: var(--surface); stroke: var(--clock-event-color); stroke-width: 2.5; }
 .day-clock-event-marker .day-clock-event-center { fill: var(--clock-event-color); stroke: none; }
@@ -1517,6 +1517,11 @@ html[data-theme="noite"] :is(.polaroid, .m-tile, .postcard, .vault-card) { backg
   line-height: .98;
   letter-spacing: -.015em;
 }
+.with-side .greet-h {
+  font-family: "Gloock", "DM Serif Display", Georgia, serif;
+  font-weight: 400;
+}
+.with-side .greet-h em { color: #FF8FC6; font: inherit; }
 @media (max-width: 760px) {
   .with-side .hh-title { font-size: 2.2rem; }
 }
