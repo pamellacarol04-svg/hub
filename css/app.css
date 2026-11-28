@@ -1269,6 +1269,10 @@ main.hub > .ftabs { order: -1; }
 /* the planners as file folders */
 .planners-blk .sec-head { margin-top: .4rem; }
 .pcards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2.2rem 1rem; padding-top: 1.3rem; }
+.pcard.folder.t1 .folder-body { --tc: color-mix(in srgb, var(--t1) calc(55% * var(--tk)), var(--surface)); }
+.pcard.folder.t2 .folder-body { --tc: color-mix(in srgb, var(--t2) calc(55% * var(--tk)), var(--surface)); }
+.pcard.folder.t3 .folder-body { --tc: color-mix(in srgb, var(--t3) calc(55% * var(--tk)), var(--surface)); }
+.pcard.folder.t4 .folder-body { --tc: color-mix(in srgb, var(--t4) calc(55% * var(--tk)), var(--surface)); }
 .pcard.folder { position: relative; display: flex; text-decoration: none; color: var(--on); padding: 0; background: none; border: 0; border-radius: 0; overflow: visible; }
 .pcard .folder-body { position: relative; z-index: 1; flex: 1; display: grid; gap: .35rem; align-content: start; justify-items: start; padding: 1rem 1rem .9rem; border: var(--bw) solid var(--edge); border-radius: 0 var(--r) var(--r) var(--r); background: var(--tc, var(--t1)); color: var(--on); box-shadow: var(--hard); transition: transform .15s; }
 .pcard .folder-body::before { content: ""; position: absolute; left: -1.5px; top: -1.2rem; width: 46%; height: 1.3rem; background: var(--tc, var(--t1)); border: var(--bw) solid var(--edge); border-bottom: 0; border-radius: 12px 16px 0 0; }
@@ -1297,10 +1301,10 @@ main.hub > .ftabs { order: -1; }
 .day-clock { display: grid; place-items: center; width: 100%; }
 .hg-right > .day-clock { grid-column: 1 / -1; justify-self: center; width: min(600px, calc(100% + 4rem), calc(100vw - 2rem)); }
 .day-clock-svg { display: block; width: min(100%, 600px); height: auto; overflow: visible; }
-.day-clock-track { fill: none; stroke: color-mix(in srgb, var(--t1) 60%, var(--surface)); stroke-width: 10; }
-.day-clock-dot { fill: color-mix(in srgb, var(--hair) 92%, var(--ink)); transition: fill .2s; }
-.day-clock-dot.is-past { fill: color-mix(in srgb, var(--t2) 75%, var(--surface)); }
-.day-clock-event-arc { fill: none; stroke: var(--clock-event-color); stroke-width: 10; stroke-linecap: round; opacity: .8; }
+.day-clock-track { fill: none; stroke: color-mix(in srgb, var(--t1) 70%, var(--surface)); stroke-width: 10; }
+.day-clock-dot { fill: color-mix(in srgb, var(--hair) 90%, var(--ink)); transition: fill .2s; }
+.day-clock-dot.is-past { fill: color-mix(in srgb, var(--t2) 85%, var(--surface)); }
+.day-clock-event-arc { fill: none; stroke: var(--clock-event-color); stroke-width: 10; stroke-linecap: round; opacity: .9; }
 .day-clock-event-marker > circle:first-of-type { fill: var(--surface); stroke: var(--clock-event-color); stroke-width: 2.5; }
 .day-clock-event-marker .day-clock-event-center { fill: var(--clock-event-color); stroke: none; }
 .day-clock-svg text { text-anchor: middle; user-select: none; }
@@ -1544,7 +1548,6 @@ html[data-theme="noite"] :is(.polaroid, .m-tile, .postcard, .vault-card) { backg
 .with-side .btn.sm:hover { background: #FF8FC6; }
 .with-side .btn.sm.solid,
 .with-side .btn.sm.solid:hover { background: #FF8FC6; }
-.with-side .pcard .folder-body { --tc: #FF8FC6; }
 .with-side .input:not(textarea), .with-side select.input {
   border-radius: 999px;
 }
@@ -1580,7 +1583,6 @@ html[data-theme="noite"] :is(.polaroid, .m-tile, .postcard, .vault-card) { backg
 .with-side .ftab:nth-child(3n) { background: #E3E6FC; }
 .with-side .ftab[aria-current="page"] {
   position: relative;
-  z-index: 3;
   border-bottom-color: #FF8FC6;
   background: #FF8FC6;
 }
@@ -1632,7 +1634,7 @@ html[data-theme="noite"] :is(.polaroid, .m-tile, .postcard, .vault-card) { backg
   position: relative;
   margin: -1.3rem -1.4rem 1rem;
   padding: .55rem .75rem;
-  border-bottom: var(--bw) solid var(--edge);
+  border-bottom: 3px double var(--edge);
   border-radius: calc(var(--r) - 1px) calc(var(--r) - 1px) 0 0;
   background: var(--panel-chrome);
   align-items: center;
