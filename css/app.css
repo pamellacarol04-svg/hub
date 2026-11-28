@@ -1297,8 +1297,8 @@ main.hub > .ftabs { order: -1; }
 .day-clock { display: grid; place-items: center; width: 100%; }
 .hg-right > .day-clock { grid-column: 1 / -1; justify-self: center; width: min(600px, calc(100% + 4rem), calc(100vw - 2rem)); }
 .day-clock-svg { display: block; width: min(100%, 600px); height: auto; overflow: visible; }
-.day-clock-track { fill: none; stroke: color-mix(in srgb, var(--t1) 48%, var(--surface)); stroke-width: 10; }
-.day-clock-dot { fill: var(--hair); transition: fill .2s; }
+.day-clock-track { fill: none; stroke: color-mix(in srgb, var(--t1) 60%, var(--surface)); stroke-width: 10; }
+.day-clock-dot { fill: color-mix(in srgb, var(--hair) 92%, var(--ink)); transition: fill .2s; }
 .day-clock-dot.is-past { fill: color-mix(in srgb, var(--t2) 62%, var(--surface)); }
 .day-clock-event-arc { fill: none; stroke: var(--clock-event-color); stroke-width: 10; stroke-linecap: round; opacity: .8; }
 .day-clock-event-marker > circle:first-of-type { fill: var(--surface); stroke: var(--clock-event-color); stroke-width: 2.5; }
